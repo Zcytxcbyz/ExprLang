@@ -50,15 +50,15 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: exprlang
+            binary_name: ExprLang
             asset_name: exprlang-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: exprlang.exe
+            binary_name: ExprLang.exe
             asset_name: exprlang-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: exprlang
+            binary_name: ExprLang
             asset_name: exprlang-macos-x86_64
     steps:
       - uses: actions/checkout@v4
@@ -72,18 +72,12 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Locate and rename binary
+      - name: Prepare artifacts
         shell: bash
         run: |
-          BIN_PATH=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable -print -quit 2>/dev/null || echo "")
-          if [ -z "$BIN_PATH" ]; then
-            echo "❌ No executable found!"
-            exit 1
-          fi
-          echo "✅ Found binary: $BIN_PATH"
           mkdir -p artifacts
-          cp "$BIN_PATH" "artifacts/${{ matrix.artifact_name }}"
-          echo "✅ Renamed to artifacts/${{ matrix.artifact_name }}"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "artifacts/${{ matrix.asset_name }}"
+          echo "✅ Copied to artifacts/${{ matrix.asset_name }}"
 
       - name: Upload assets to release
         uses: softprops/action-gh-release@v2
@@ -91,3 +85,4 @@ jobs:
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
