@@ -74,7 +74,6 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      # 调试：列出生成的文件
       - name: Debug - list release folder
         shell: bash
         run: |
