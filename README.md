@@ -3,7 +3,6 @@
 **ExprLang** is a lightweight, Rust-based **mathematical expression language** designed for scientific computing, formula evaluation, and scripting. It combines the simplicity of a calculator with the power of a scripting language.
 
 [![Crates.io](https://img.shields.io/crates/v/expr_lang.svg)](https://crates.io/crates/expr_lang)
-[![Documentation](https://docs.rs/expr_lang/badge.svg)](https://docs.rs/expr_lang)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml/badge.svg)](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml)
 
