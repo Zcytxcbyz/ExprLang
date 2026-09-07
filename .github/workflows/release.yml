@@ -6,8 +6,22 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo test --all-features
+
   create-release:
     name: Create Release
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -25,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
-    name: Build (${{ matrix.os }})
+    name: Build (${{ matrix.target }})
     needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -45,18 +59,12 @@ jobs:
             asset_name: exprlang-macos-x86_64
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-
-      - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Upload binary to release
-        uses: softprops/action-gh-release@v1
+      - run: cargo build --release --target ${{ matrix.target }}
+      - uses: softprops/action-gh-release@v1
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
