@@ -45,20 +45,22 @@ jobs:
     name: Build (${{ matrix.target }})
     needs: create-release
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary_name: ExprLang
+            binary_name: expr_lang               # 改为小写
             asset_name: exprlang-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: ExprLang.exe
+            binary_name: expr_lang.exe           # 改为小写
             asset_name: exprlang-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            binary_name: ExprLang
+            binary_name: expr_lang               # 改为小写
             asset_name: exprlang-macos-x86_64
     steps:
       - uses: actions/checkout@v4
@@ -85,4 +87,3 @@ jobs:
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
