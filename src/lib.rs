@@ -1,20 +1,20 @@
 #![allow(non_snake_case)]
-mod value;
 mod ast;
+mod evaluator;
 mod lexer;
 mod parser;
-mod evaluator;
 mod repl;
+mod value;
 
-pub use value::Value;
 pub use evaluator::Evaluator;
-pub use evaluator::{evaluate, evaluate_with_env, evaluate_with_context};
+pub use evaluator::{evaluate, evaluate_with_context, evaluate_with_env};
 pub use repl::repl;
+pub use value::Value;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use super::*;
+    use std::collections::HashMap;
 
     fn eval_num(expr: &str) -> f64 {
         match evaluate(expr).unwrap() {

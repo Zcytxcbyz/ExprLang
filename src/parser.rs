@@ -1,5 +1,5 @@
-use crate::lexer::{Lexer, Token};
 use crate::ast::{Expr, Op, UnaryOp};
+use crate::lexer::{Lexer, Token};
 
 pub struct Parser {
     lexer: Lexer,
@@ -54,7 +54,10 @@ impl Parser {
                     }
                     self.next_token();
                     let right = self.parse_expr()?;
-                    return Ok(Expr::Assign { name: var_name, expr: Box::new(right) });
+                    return Ok(Expr::Assign {
+                        name: var_name,
+                        expr: Box::new(right),
+                    });
                 } else {
                     return Err("Expected variable name after let".to_string());
                 }
@@ -67,7 +70,10 @@ impl Parser {
             if let Expr::Variable(name) = left {
                 self.next_token();
                 let right = self.parse_expr()?;
-                Ok(Expr::Assign { name, expr: Box::new(right) })
+                Ok(Expr::Assign {
+                    name,
+                    expr: Box::new(right),
+                })
             } else {
                 Err("Assignment target must be a variable".to_string())
             }
@@ -81,7 +87,11 @@ impl Parser {
         while self.current == Token::Or {
             self.next_token();
             let right = self.parse_and()?;
-            left = Expr::Binary { op: Op::Or, left: Box::new(left), right: Box::new(right) };
+            left = Expr::Binary {
+                op: Op::Or,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -91,7 +101,11 @@ impl Parser {
         while self.current == Token::And {
             self.next_token();
             let right = self.parse_comparison()?;
-            left = Expr::Binary { op: Op::And, left: Box::new(left), right: Box::new(right) };
+            left = Expr::Binary {
+                op: Op::And,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -99,8 +113,12 @@ impl Parser {
     fn parse_comparison(&mut self) -> Result<Expr, String> {
         let left = self.parse_add_sub()?;
         match self.current {
-            Token::Less | Token::LessEqual | Token::Greater | Token::GreaterEqual |
-            Token::Equal | Token::NotEqual => {
+            Token::Less
+            | Token::LessEqual
+            | Token::Greater
+            | Token::GreaterEqual
+            | Token::Equal
+            | Token::NotEqual => {
                 let op = match self.current {
                     Token::Less => Op::Less,
                     Token::LessEqual => Op::LessEqual,
@@ -112,7 +130,11 @@ impl Parser {
                 };
                 self.next_token();
                 let right = self.parse_comparison()?;
-                Ok(Expr::Binary { op, left: Box::new(left), right: Box::new(right) })
+                Ok(Expr::Binary {
+                    op,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                })
             }
             _ => Ok(left),
         }
@@ -128,7 +150,11 @@ impl Parser {
             };
             self.next_token();
             let right = self.parse_mul_div()?;
-            left = Expr::Binary { op, left: Box::new(left), right: Box::new(right) };
+            left = Expr::Binary {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -143,7 +169,11 @@ impl Parser {
             };
             self.next_token();
             let right = self.parse_unary()?;
-            left = Expr::Binary { op, left: Box::new(left), right: Box::new(right) };
+            left = Expr::Binary {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -153,12 +183,18 @@ impl Parser {
             Token::Minus => {
                 self.next_token();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Unary { op: UnaryOp::Neg, expr: Box::new(expr) })
+                Ok(Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(expr),
+                })
             }
             Token::Not => {
                 self.next_token();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Unary { op: UnaryOp::Not, expr: Box::new(expr) })
+                Ok(Expr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(expr),
+                })
             }
             _ => self.parse_postfix(),
         }
@@ -284,7 +320,11 @@ impl Parser {
         }
         self.next_token();
         let else_expr = Box::new(self.parse_expr()?);
-        Ok(Expr::If { cond, then: then_expr, else_branch: else_expr })
+        Ok(Expr::If {
+            cond,
+            then: then_expr,
+            else_branch: else_expr,
+        })
     }
 
     fn parse_while(&mut self) -> Result<Expr, String> {

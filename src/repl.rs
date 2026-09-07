@@ -1,7 +1,7 @@
+use crate::{Evaluator, Value, evaluate_with_context};
 use std::collections::HashMap;
-use std::io::{self, Write};
 use std::f64::consts;
-use crate::{evaluate_with_context, Evaluator, Value};
+use std::io::{self, Write};
 
 pub fn repl() -> Result<(), String> {
     let mut env = HashMap::new();

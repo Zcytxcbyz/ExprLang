@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::f64::consts;
 use crate::ast::Expr;
 use crate::value::Value;
+use std::collections::HashMap;
+use std::f64::consts;
 
 pub struct Evaluator {
     functions: HashMap<String, (Vec<String>, Expr)>,
@@ -18,7 +18,11 @@ impl Evaluator {
         self.eval_internal(expr, env)
     }
 
-    fn eval_internal(&mut self, expr: &Expr, env: &mut HashMap<String, Value>) -> Result<Value, String> {
+    fn eval_internal(
+        &mut self,
+        expr: &Expr,
+        env: &mut HashMap<String, Value>,
+    ) -> Result<Value, String> {
         match expr {
             Expr::Number(n) => Ok(Value::Num(*n)),
             Expr::String(s) => Ok(Value::Str(s.clone())),
@@ -44,22 +48,19 @@ impl Evaluator {
                     _ => Err("Index requires an array and a numeric index".to_string()),
                 }
             }
-            Expr::Variable(name) => {
-                env.get(name)
-                    .cloned()
-                    .ok_or_else(|| format!("Undefined variable: {}", name))
-            }
+            Expr::Variable(name) => env
+                .get(name)
+                .cloned()
+                .ok_or_else(|| format!("Undefined variable: {}", name)),
             Expr::Binary { op, left, right } => {
                 let l = self.eval_internal(left, env)?;
                 let r = self.eval_internal(right, env)?;
                 match op {
-                    crate::ast::Op::Add => {
-                        match (l, r) {
-                            (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
-                            (Value::Str(a), Value::Str(b)) => Ok(Value::Str(a + &b)),
-                            _ => Err("+ requires two numbers or two strings".to_string()),
-                        }
-                    }
+                    crate::ast::Op::Add => match (l, r) {
+                        (Value::Num(a), Value::Num(b)) => Ok(Value::Num(a + b)),
+                        (Value::Str(a), Value::Str(b)) => Ok(Value::Str(a + &b)),
+                        _ => Err("+ requires two numbers or two strings".to_string()),
+                    },
                     crate::ast::Op::Sub => {
                         if let (Value::Num(a), Value::Num(b)) = (l, r) {
                             Ok(Value::Num(a - b))
@@ -131,7 +132,9 @@ impl Evaluator {
                     if arg_vals.len() != params.len() {
                         return Err(format!(
                             "Function {} expects {} arguments, got {}",
-                            name, params.len(), arg_vals.len()
+                            name,
+                            params.len(),
+                            arg_vals.len()
                         ));
                     }
                     let mut local_env = env.clone();
@@ -155,7 +158,11 @@ impl Evaluator {
                 }
                 Ok(last)
             }
-            Expr::If { cond, then, else_branch } => {
+            Expr::If {
+                cond,
+                then,
+                else_branch,
+            } => {
                 let cond_val = self.eval_internal(cond, env)?;
                 if Self::as_bool(&cond_val)? {
                     self.eval_internal(then, env)
@@ -171,7 +178,8 @@ impl Evaluator {
                 Ok(result)
             }
             Expr::FunctionDef { name, params, body } => {
-                self.functions.insert(name.clone(), (params.clone(), *body.clone()));
+                self.functions
+                    .insert(name.clone(), (params.clone(), *body.clone()));
                 Ok(Value::Num(0.0))
             }
         }
@@ -188,30 +196,35 @@ impl Evaluator {
     fn get_builtin(name: &str) -> Option<BuiltinFunc> {
         use BuiltinFunc::*;
         match name {
-            "sin"    => Some(Sin),
-            "cos"    => Some(Cos),
-            "tan"    => Some(Tan),
-            "asin"   => Some(Asin),
-            "acos"   => Some(Acos),
-            "atan"   => Some(Atan),
-            "sqrt"   => Some(Sqrt),
-            "exp"    => Some(Exp),
-            "ln"     => Some(Ln),
-            "log10"  => Some(Log10),
-            "abs"    => Some(Abs),
-            "pow"    => Some(Pow),
-            "max"    => Some(Max),
-            "min"    => Some(Min),
-            "floor"  => Some(Floor),
-            "ceil"   => Some(Ceil),
-            "round"  => Some(Round),
-            "len"    => Some(Len),
+            "sin" => Some(Sin),
+            "cos" => Some(Cos),
+            "tan" => Some(Tan),
+            "asin" => Some(Asin),
+            "acos" => Some(Acos),
+            "atan" => Some(Atan),
+            "sqrt" => Some(Sqrt),
+            "exp" => Some(Exp),
+            "ln" => Some(Ln),
+            "log10" => Some(Log10),
+            "abs" => Some(Abs),
+            "pow" => Some(Pow),
+            "max" => Some(Max),
+            "min" => Some(Min),
+            "floor" => Some(Floor),
+            "ceil" => Some(Ceil),
+            "round" => Some(Round),
+            "len" => Some(Len),
             "concat" => Some(Concat),
-            _        => None,
+            _ => None,
         }
     }
 
-    fn eval_builtin(&mut self, func: BuiltinFunc, args: &[Expr], env: &mut HashMap<String, Value>) -> Result<Value, String> {
+    fn eval_builtin(
+        &mut self,
+        func: BuiltinFunc,
+        args: &[Expr],
+        env: &mut HashMap<String, Value>,
+    ) -> Result<Value, String> {
         use BuiltinFunc::*;
         match func {
             Sin => self.eval_unary_num(args, env, |x| x.sin()),
@@ -298,8 +311,15 @@ impl Evaluator {
         }
     }
 
-    fn eval_unary_num<F>(&mut self, args: &[Expr], env: &mut HashMap<String, Value>, f: F) -> Result<Value, String>
-    where F: Fn(f64) -> f64 {
+    fn eval_unary_num<F>(
+        &mut self,
+        args: &[Expr],
+        env: &mut HashMap<String, Value>,
+        f: F,
+    ) -> Result<Value, String>
+    where
+        F: Fn(f64) -> f64,
+    {
         if args.len() != 1 {
             return Err(format!("Function takes 1 argument, got {}", args.len()));
         }
@@ -313,10 +333,25 @@ impl Evaluator {
 }
 
 enum BuiltinFunc {
-    Sin, Cos, Tan, Asin, Acos, Atan,
-    Sqrt, Exp, Ln, Log10, Abs,
-    Max, Min, Floor, Ceil, Round,
-    Len, Concat, Pow,
+    Sin,
+    Cos,
+    Tan,
+    Asin,
+    Acos,
+    Atan,
+    Sqrt,
+    Exp,
+    Ln,
+    Log10,
+    Abs,
+    Max,
+    Min,
+    Floor,
+    Ceil,
+    Round,
+    Len,
+    Concat,
+    Pow,
 }
 
 // ========== 公共求值函数 ==========
@@ -336,7 +371,8 @@ pub fn evaluate_with_env(expr: &str, env: &mut HashMap<String, Value>) -> Result
     let mut parser = crate::parser::Parser::new(lexer);
     let ast = parser.parse()?;
     let mut evaluator = Evaluator::new();
-    env.entry("pi".to_string()).or_insert(Value::Num(consts::PI));
+    env.entry("pi".to_string())
+        .or_insert(Value::Num(consts::PI));
     env.entry("e".to_string()).or_insert(Value::Num(consts::E));
     evaluator.eval(&ast, env)
 }

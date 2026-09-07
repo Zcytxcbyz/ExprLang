@@ -1,4 +1,4 @@
-use ExprLang::{evaluate, evaluate_with_context, Value, Evaluator};
+use ExprLang::{Evaluator, Value, evaluate, evaluate_with_context};
 use std::collections::HashMap;
 
 #[test]

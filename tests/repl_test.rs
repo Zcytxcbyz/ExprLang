@@ -1,6 +1,6 @@
 // tests/repl_test.rs
-use std::process::{Command, Stdio};
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 #[test]
 fn test_repl_exit() {
