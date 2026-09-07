@@ -23,15 +23,15 @@ Cargo.lock
 *~
 .DS_Store
 
-# 测试输出
+# test
 *.prof
 *.profdata
 *.gcda
 *.gcno
 
-# 日志
+# logs
 *.log
 
-# 临时文件
+# temp
 *.tmp
 *.temp
