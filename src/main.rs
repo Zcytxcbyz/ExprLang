@@ -1,4 +1,4 @@
-use ExprLang::{Evaluator, Value, evaluate_with_context, repl};
+use expr_lang::{Evaluator, Value, evaluate_with_context, repl};
 use std::collections::HashMap;
 use std::f64::consts;
 

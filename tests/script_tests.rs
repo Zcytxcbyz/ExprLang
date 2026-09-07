@@ -39,7 +39,7 @@ fn test_script_files() {
             (content.clone(), None)
         };
 
-        match ExprLang::evaluate(&script_body) {
+        match expr_lang::evaluate(&script_body) {
             Ok(val) => {
                 let result_str = val.to_string();
                 if let Some(expected) = expected {

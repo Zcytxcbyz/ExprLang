@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/expr_lang.svg)](https://crates.io/crates/expr_lang)
 [![Documentation](https://docs.rs/expr_lang/badge.svg)](https://docs.rs/expr_lang)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/你的用户名/exprlang/actions/workflows/ci.yml/badge.svg)](https://github.com/你的用户名/exprlang/actions/workflows/ci.yml)
+[![CI](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml/badge.svg)](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml)
 
 ## Features
 
