@@ -353,7 +353,6 @@ enum BuiltinFunc {
     Pow,
 }
 
-// ========== 公共求值函数 ==========
 pub fn evaluate(expr: &str) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
     let mut parser = crate::parser::Parser::new(lexer);
