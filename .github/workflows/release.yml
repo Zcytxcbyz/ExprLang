@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           draft: false
@@ -62,14 +62,32 @@ jobs:
             asset_name: exprlang-macos-x86_64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-      - run: cargo build --release --target ${{ matrix.target }}
-      - uses: softprops/action-gh-release@v1
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Locate and rename binary
+        shell: bash
+        run: |
+          BIN_PATH=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable -print -quit 2>/dev/null || echo "")
+          if [ -z "$BIN_PATH" ]; then
+            echo "❌ No executable found!"
+            exit 1
+          fi
+          echo "✅ Found binary: $BIN_PATH"
+          mkdir -p artifacts
+          cp "$BIN_PATH" "artifacts/${{ matrix.artifact_name }}"
+          echo "✅ Renamed to artifacts/${{ matrix.artifact_name }}"
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
