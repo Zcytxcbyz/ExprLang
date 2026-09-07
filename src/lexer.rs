@@ -29,7 +29,7 @@ pub enum Token {
     While,
     Do,
     Fn,
-    EOF,
+    Eof,
 }
 
 pub struct Lexer {
@@ -156,7 +156,7 @@ impl Lexer {
         }
 
         match self.peek_char() {
-            None => Token::EOF,
+            None => Token::Eof,
             Some(c) => {
                 let next = self.input.get(self.pos + 1).copied();
                 match (c, next) {

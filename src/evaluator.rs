@@ -3,15 +3,14 @@ use crate::value::Value;
 use std::collections::HashMap;
 use std::f64::consts;
 
+#[derive(Default)]
 pub struct Evaluator {
     functions: HashMap<String, (Vec<String>, Expr)>,
 }
 
 impl Evaluator {
     pub fn new() -> Self {
-        Evaluator {
-            functions: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn eval(&mut self, expr: &Expr, env: &mut HashMap<String, Value>) -> Result<Value, String> {

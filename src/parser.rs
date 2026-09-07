@@ -20,7 +20,7 @@ impl Parser {
         let mut seq = Vec::new();
         loop {
             match self.current {
-                Token::EOF => break,
+                Token::Eof => break,
                 _ => {
                     let expr = self.parse_expr()?;
                     seq.push(expr);
@@ -202,22 +202,17 @@ impl Parser {
 
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
-        loop {
-            match self.current {
-                Token::LBracket => {
-                    self.next_token();
-                    let index = self.parse_expr()?;
-                    if self.current != Token::RBracket {
-                        return Err("Expected ']'".to_string());
-                    }
-                    self.next_token();
-                    expr = Expr::Index {
-                        array: Box::new(expr),
-                        index: Box::new(index),
-                    };
-                }
-                _ => break,
+        while let Token::LBracket = self.current {
+            self.next_token();
+            let index = self.parse_expr()?;
+            if self.current != Token::RBracket {
+                return Err("Expected ']'".to_string());
             }
+            self.next_token();
+            expr = Expr::Index {
+                array: Box::new(expr),
+                index: Box::new(index),
+            };
         }
         Ok(expr)
     }
