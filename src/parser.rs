@@ -43,6 +43,15 @@ impl Parser {
         match &self.current {
             Token::If => return self.parse_if(),
             Token::While => return self.parse_while(),
+            Token::For => return self.parse_for(),
+            Token::Break => {
+                self.next_token();
+                return Ok(Expr::Break);
+            }
+            Token::Continue => {
+                self.next_token();
+                return Ok(Expr::Continue);
+            }
             Token::Fn => return self.parse_function_def(),
             Token::Ident(name) if name == "let" => {
                 self.next_token();
@@ -202,17 +211,42 @@ impl Parser {
 
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
-        while let Token::LBracket = self.current {
-            self.next_token();
-            let index = self.parse_expr()?;
-            if self.current != Token::RBracket {
-                return Err("Expected ']'".to_string());
+        loop {
+            match self.current {
+                Token::LBracket => {
+                    self.next_token();
+                    let index_or_slice = self.parse_expr()?;
+                    if self.current == Token::Colon {
+                        // 切片: arr[start:end]
+                        self.next_token();
+                        let end = if self.current != Token::RBracket {
+                            Some(Box::new(self.parse_expr()?))
+                        } else {
+                            None
+                        };
+                        if self.current != Token::RBracket {
+                            return Err("Expected ']'".to_string());
+                        }
+                        self.next_token();
+                        expr = Expr::Slice {
+                            array: Box::new(expr),
+                            start: Some(Box::new(index_or_slice)),
+                            end,
+                        };
+                    } else {
+                        // 索引: arr[index]
+                        if self.current != Token::RBracket {
+                            return Err("Expected ']'".to_string());
+                        }
+                        self.next_token();
+                        expr = Expr::Index {
+                            array: Box::new(expr),
+                            index: Box::new(index_or_slice),
+                        };
+                    }
+                }
+                _ => break,
             }
-            self.next_token();
-            expr = Expr::Index {
-                array: Box::new(expr),
-                index: Box::new(index),
-            };
         }
         Ok(expr)
     }
@@ -304,21 +338,40 @@ impl Parser {
 
     fn parse_if(&mut self) -> Result<Expr, String> {
         self.next_token();
+        let mut branches = Vec::new();
+
+        // 第一个条件分支
         let cond = Box::new(self.parse_expr()?);
         if self.current != Token::Then {
             return Err("Expected 'then'".to_string());
         }
         self.next_token();
         let then_expr = Box::new(self.parse_expr()?);
-        if self.current != Token::Else {
-            return Err("Expected 'else'".to_string());
+        branches.push((cond, then_expr));
+
+        // 处理 elif 分支
+        while self.current == Token::Elif {
+            self.next_token();
+            let elif_cond = Box::new(self.parse_expr()?);
+            if self.current != Token::Then {
+                return Err("Expected 'then' after elif condition".to_string());
+            }
+            self.next_token();
+            let elif_then = Box::new(self.parse_expr()?);
+            branches.push((elif_cond, elif_then));
         }
-        self.next_token();
-        let else_expr = Box::new(self.parse_expr()?);
+
+        // 处理 else 分支
+        let else_branch = if self.current == Token::Else {
+            self.next_token();
+            Some(Box::new(self.parse_expr()?))
+        } else {
+            None
+        };
+
         Ok(Expr::If {
-            cond,
-            then: then_expr,
-            else_branch: else_expr,
+            branches,
+            else_branch,
         })
     }
 
@@ -333,6 +386,43 @@ impl Parser {
         Ok(Expr::While { cond, body })
     }
 
+    fn parse_for(&mut self) -> Result<Expr, String> {
+        self.next_token(); // for
+        let var = match &self.current {
+            Token::Ident(name) => name.clone(),
+            _ => return Err("Expected variable name after 'for'".to_string()),
+        };
+        self.next_token();
+
+        if self.current != Token::In {
+            return Err("Expected 'in' after variable".to_string());
+        }
+        self.next_token();
+
+        let start = Box::new(self.parse_expr()?);
+        if self.current != Token::DotDot {
+            return Err("Expected '..' in range".to_string());
+        }
+        self.next_token();
+
+        let end = Box::new(self.parse_expr()?);
+
+        let step = if self.current == Token::Step {
+            self.next_token();
+            Some(Box::new(self.parse_expr()?))
+        } else {
+            None
+        };
+
+        if self.current != Token::Do {
+            return Err("Expected 'do'".to_string());
+        }
+        self.next_token();
+
+        let body = Box::new(self.parse_expr()?);
+        Ok(Expr::For { var, start, end, step, body })
+    }
+    
     fn parse_function_def(&mut self) -> Result<Expr, String> {
         self.next_token();
         let name = match &self.current {

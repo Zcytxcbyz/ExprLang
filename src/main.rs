@@ -1,9 +1,15 @@
-use expr_lang::{Evaluator, Value, evaluate_with_context, repl};
+use expr_lang::{Evaluator, Value, evaluate_with_context, repl, VERSION};
 use std::collections::HashMap;
 use std::f64::consts;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
+
+    // 处理 --version
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("ExprLang v{}", VERSION);
+        return Ok(());
+    }
 
     if args.len() > 1 {
         let file_path = &args[1];
@@ -11,6 +17,7 @@ fn main() -> Result<(), String> {
             println!("Usage:");
             println!("  cargo run                    Start interactive REPL");
             println!("  cargo run -- <script.txt>   Execute script file");
+            println!("  cargo run -- --version      Show version");
             return Ok(());
         }
 

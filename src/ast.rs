@@ -7,6 +7,11 @@ pub enum Expr {
         array: Box<Expr>,
         index: Box<Expr>,
     },
+    Slice {
+        array: Box<Expr>,
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+    },
     Variable(String),
     Binary {
         op: Op,
@@ -27,14 +32,22 @@ pub enum Expr {
     },
     Sequence(Vec<Expr>),
     If {
-        cond: Box<Expr>,
-        then: Box<Expr>,
-        else_branch: Box<Expr>,
+        branches: Vec<(Box<Expr>, Box<Expr>)>,
+        else_branch: Option<Box<Expr>>,
     },
     While {
         cond: Box<Expr>,
         body: Box<Expr>,
     },
+    For {
+        var: String,
+        start: Box<Expr>,
+        end: Box<Expr>,
+        step: Option<Box<Expr>>,
+        body: Box<Expr>,
+    },
+    Break,
+    Continue,
     FunctionDef {
         name: String,
         params: Vec<String>,

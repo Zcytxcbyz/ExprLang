@@ -47,6 +47,34 @@ impl Evaluator {
                     _ => Err("Index requires an array and a numeric index".to_string()),
                 }
             }
+            Expr::Slice { array, start, end } => {
+                let arr = self.eval_internal(array, env)?;
+                match arr {
+                    Value::Array(a) => {
+                        let start_idx = if let Some(s) = start {
+                            match self.eval_internal(s, env)? {
+                                Value::Num(n) => n as usize,
+                                _ => return Err("Slice start must be a number".to_string()),
+                            }
+                        } else {
+                            0
+                        };
+                        let end_idx = if let Some(e) = end {
+                            match self.eval_internal(e, env)? {
+                                Value::Num(n) => n as usize,
+                                _ => return Err("Slice end must be a number".to_string()),
+                            }
+                        } else {
+                            a.len()
+                        };
+                        if start_idx > a.len() || end_idx > a.len() || start_idx > end_idx {
+                            return Err("Invalid slice bounds".to_string());
+                        }
+                        Ok(Value::Array(a[start_idx..end_idx].to_vec()))
+                    }
+                    _ => Err("Slice requires an array".to_string()),
+                }
+            }
             Expr::Variable(name) => env
                 .get(name)
                 .cloned()
@@ -119,6 +147,8 @@ impl Evaluator {
                     }
                 }
             }
+            Expr::Break => return Err("__break__".to_string()),
+            Expr::Continue => return Err("__continue__".to_string()),
             Expr::Call { name, args } => {
                 if let Some(builtin) = Self::get_builtin(name) {
                     return self.eval_builtin(builtin, args, env);
@@ -157,22 +187,74 @@ impl Evaluator {
                 }
                 Ok(last)
             }
-            Expr::If {
-                cond,
-                then,
-                else_branch,
-            } => {
-                let cond_val = self.eval_internal(cond, env)?;
-                if Self::as_bool(&cond_val)? {
-                    self.eval_internal(then, env)
+            Expr::If { branches, else_branch } => {
+                for (cond, then_expr) in branches {
+                    let cond_val = self.eval_internal(cond, env)?;
+                    if Self::as_bool(&cond_val)? {
+                        return self.eval_internal(then_expr, env);
+                    }
+                }
+                if let Some(else_expr) = else_branch {
+                    self.eval_internal(else_expr, env)
                 } else {
-                    self.eval_internal(else_branch, env)
+                    Ok(Value::Num(0.0))
                 }
             }
             Expr::While { cond, body } => {
                 let mut result = Value::Num(0.0);
                 while Self::as_bool(&self.eval_internal(cond, env)?)? {
-                    result = self.eval_internal(body, env)?;
+                    match self.eval_internal(body, env) {
+                        Ok(v) => result = v,
+                        Err(e) if e == "__break__" => break,
+                        Err(e) if e == "__continue__" => continue,
+                        Err(e) => return Err(e),
+                    }
+                }
+                Ok(result)
+            }
+            Expr::For { var, start, end, step, body } => {
+                let start_val = self.eval_internal(start, env)?;
+                let end_val = self.eval_internal(end, env)?;
+                let step_val = if let Some(s) = step {
+                    match self.eval_internal(s, env)? {
+                        Value::Num(n) => n,
+                        _ => return Err("Step must be a number".to_string()),
+                    }
+                } else {
+                    1.0
+                };
+
+                let (start_num, end_num) = match (start_val, end_val) {
+                    (Value::Num(a), Value::Num(b)) => (a, b),
+                    _ => return Err("Range bounds must be numbers".to_string()),
+                };
+
+                let mut result = Value::Num(0.0);
+                let mut i = start_num;
+                if step_val > 0.0 {
+                    while i < end_num {
+                        env.insert(var.clone(), Value::Num(i));
+                        match self.eval_internal(body, env) {
+                            Ok(v) => result = v,
+                            Err(e) if e == "__break__" => break,
+                            Err(e) if e == "__continue__" => { i += step_val; continue; }
+                            Err(e) => return Err(e),
+                        }
+                        i += step_val;
+                    }
+                } else if step_val < 0.0 {
+                    while i > end_num {
+                        env.insert(var.clone(), Value::Num(i));
+                        match self.eval_internal(body, env) {
+                            Ok(v) => result = v,
+                            Err(e) if e == "__break__" => break,
+                            Err(e) if e == "__continue__" => { i += step_val; continue; }
+                            Err(e) => return Err(e),
+                        }
+                        i += step_val;
+                    }
+                } else {
+                    return Err("Step cannot be zero".to_string());
                 }
                 Ok(result)
             }
@@ -201,10 +283,14 @@ impl Evaluator {
             "asin" => Some(Asin),
             "acos" => Some(Acos),
             "atan" => Some(Atan),
+            "atan2" => Some(Atan2),
             "sqrt" => Some(Sqrt),
             "exp" => Some(Exp),
             "ln" => Some(Ln),
             "log10" => Some(Log10),
+            "log2" => Some(Log2),
+            "log" => Some(Log),
+            "hypot" => Some(Hypot),
             "abs" => Some(Abs),
             "pow" => Some(Pow),
             "max" => Some(Max),
@@ -214,6 +300,12 @@ impl Evaluator {
             "round" => Some(Round),
             "len" => Some(Len),
             "concat" => Some(Concat),
+            "factorial" => Some(Factorial),
+            "sign" => Some(Sign),
+            "is_even" => Some(IsEven),
+            "is_odd" => Some(IsOdd),
+            "deg" => Some(Deg),
+            "rad" => Some(Rad),
             _ => None,
         }
     }
@@ -232,10 +324,44 @@ impl Evaluator {
             Asin => self.eval_unary_num(args, env, |x| x.asin()),
             Acos => self.eval_unary_num(args, env, |x| x.acos()),
             Atan => self.eval_unary_num(args, env, |x| x.atan()),
+            Atan2 => {
+                if args.len() != 2 {
+                    return Err("atan2 takes 2 arguments".to_string());
+                }
+                let y = self.eval_internal(&args[0], env)?;
+                let x = self.eval_internal(&args[1], env)?;
+                match (y, x) {
+                    (Value::Num(yv), Value::Num(xv)) => Ok(Value::Num(yv.atan2(xv))),
+                    _ => Err("atan2 requires numeric arguments".to_string()),
+                }
+            }
             Sqrt => self.eval_unary_num(args, env, |x| x.sqrt()),
             Exp => self.eval_unary_num(args, env, |x| x.exp()),
             Ln => self.eval_unary_num(args, env, |x| x.ln()),
             Log10 => self.eval_unary_num(args, env, |x| x.log10()),
+            Log2 => self.eval_unary_num(args, env, |x| x.log2()),
+            Log => {
+                if args.len() != 2 {
+                    return Err("log takes 2 arguments (x, base)".to_string());
+                }
+                let x = self.eval_internal(&args[0], env)?;
+                let base = self.eval_internal(&args[1], env)?;
+                match (x, base) {
+                    (Value::Num(xv), Value::Num(bv)) => Ok(Value::Num(xv.log(bv))),
+                    _ => Err("log requires numeric arguments".to_string()),
+                }
+            }
+            Hypot => {
+                if args.len() != 2 {
+                    return Err("hypot takes 2 arguments".to_string());
+                }
+                let x = self.eval_internal(&args[0], env)?;
+                let y = self.eval_internal(&args[1], env)?;
+                match (x, y) {
+                    (Value::Num(xv), Value::Num(yv)) => Ok(Value::Num(xv.hypot(yv))),
+                    _ => Err("hypot requires numeric arguments".to_string()),
+                }
+            }
             Abs => self.eval_unary_num(args, env, |x| x.abs()),
             Floor => self.eval_unary_num(args, env, |x| x.floor()),
             Ceil => self.eval_unary_num(args, env, |x| x.ceil()),
@@ -307,6 +433,92 @@ impl Evaluator {
                 }
                 Ok(Value::Str(result))
             }
+            Factorial => {
+                if args.len() != 1 {
+                    return Err("factorial takes 1 argument".to_string());
+                }
+                let n = self.eval_internal(&args[0], env)?;
+                match n {
+                    Value::Num(nv) => {
+                        if nv < 0.0 || nv.fract() != 0.0 {
+                            return Err("factorial requires a non-negative integer".to_string());
+                        }
+                        let n = nv as u64;
+                        if n > 20 {
+                            return Err("factorial too large (max 20)".to_string());
+                        }
+                        let result = (1..=n).product::<u64>();
+                        Ok(Value::Num(result as f64))
+                    }
+                    _ => Err("factorial requires a number".to_string()),
+                }
+            }
+            Sign => {
+                if args.len() != 1 {
+                    return Err("sign takes 1 argument".to_string());
+                }
+                let val = self.eval_internal(&args[0], env)?;
+                match val {
+                    Value::Num(n) => {
+                        if n > 0.0 { Ok(Value::Num(1.0)) }
+                        else if n < 0.0 { Ok(Value::Num(-1.0)) }
+                        else { Ok(Value::Num(0.0)) }
+                    }
+                    _ => Err("sign requires a number".to_string()),
+                }
+            }
+            IsEven => {
+                if args.len() != 1 {
+                    return Err("is_even takes 1 argument".to_string());
+                }
+                let val = self.eval_internal(&args[0], env)?;
+                match val {
+                    Value::Num(n) => {
+                        if n.fract() == 0.0 {
+                            Ok(Value::Num(if (n as i64) % 2 == 0 { 1.0 } else { 0.0 }))
+                        } else {
+                            Err("is_even requires an integer".to_string())
+                        }
+                    }
+                    _ => Err("is_even requires a number".to_string()),
+                }
+            }
+            IsOdd => {
+                if args.len() != 1 {
+                    return Err("is_odd takes 1 argument".to_string());
+                }
+                let val = self.eval_internal(&args[0], env)?;
+                match val {
+                    Value::Num(n) => {
+                        if n.fract() == 0.0 {
+                            Ok(Value::Num(if (n as i64) % 2 != 0 { 1.0 } else { 0.0 }))
+                        } else {
+                            Err("is_odd requires an integer".to_string())
+                        }
+                    }
+                    _ => Err("is_odd requires a number".to_string()),
+                }
+            }
+            Deg => {
+                if args.len() != 1 {
+                    return Err("deg takes 1 argument".to_string());
+                }
+                let val = self.eval_internal(&args[0], env)?;
+                match val {
+                    Value::Num(n) => Ok(Value::Num(n * 180.0 / consts::PI)),
+                    _ => Err("deg requires a number".to_string()),
+                }
+            }
+            Rad => {
+                if args.len() != 1 {
+                    return Err("rad takes 1 argument".to_string());
+                }
+                let val = self.eval_internal(&args[0], env)?;
+                match val {
+                    Value::Num(n) => Ok(Value::Num(n * consts::PI / 180.0)),
+                    _ => Err("rad requires a number".to_string()),
+                }
+            }
         }
     }
 
@@ -338,10 +550,14 @@ enum BuiltinFunc {
     Asin,
     Acos,
     Atan,
+    Atan2,
     Sqrt,
     Exp,
     Ln,
     Log10,
+    Log2,
+    Log,
+    Hypot,
     Abs,
     Max,
     Min,
@@ -351,6 +567,12 @@ enum BuiltinFunc {
     Len,
     Concat,
     Pow,
+    Factorial,
+    Sign,
+    IsEven,
+    IsOdd,
+    Deg,
+    Rad,
 }
 
 pub fn evaluate(expr: &str) -> Result<Value, String> {

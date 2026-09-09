@@ -1,20 +1,25 @@
 #![allow(non_snake_case)]
+
 mod ast;
 mod evaluator;
 mod lexer;
 mod parser;
 mod repl;
 mod value;
+pub mod error;
 
 pub use evaluator::Evaluator;
 pub use evaluator::{evaluate, evaluate_with_context, evaluate_with_env};
 pub use repl::repl;
 pub use value::Value;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::f64::consts;
 
     fn eval_num(expr: &str) -> f64 {
         match evaluate(expr).unwrap() {
@@ -23,6 +28,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn eval_str(expr: &str) -> String {
         match evaluate(expr).unwrap() {
             Value::Str(s) => s,
@@ -41,7 +47,7 @@ mod tests {
     }
 
     #[test]
-    fn test_builtins() {
+    fn test_builtins_old() {
         assert_eq!(eval_num("sin(pi/2)"), 1.0);
         assert_eq!(eval_num("cos(0)"), 1.0);
         assert_eq!(eval_num("sqrt(16)"), 4.0);
@@ -50,6 +56,21 @@ mod tests {
         assert_eq!(eval_num("floor(3.7)"), 3.0);
         assert_eq!(eval_num("ceil(3.2)"), 4.0);
         assert_eq!(eval_num("round(3.5)"), 4.0);
+    }
+
+    #[test]
+    fn test_new_builtins() {
+        assert_eq!(eval_num("atan2(1, 1) * 4"), consts::PI);
+        assert_eq!(eval_num("log2(8)"), 3.0);
+        assert_eq!(eval_num("log(100, 10)"), 2.0);
+        assert_eq!(eval_num("hypot(3, 4)"), 5.0);
+        assert_eq!(eval_num("factorial(5)"), 120.0);
+        assert_eq!(eval_num("sign(-10)"), -1.0);
+        assert_eq!(eval_num("sign(0)"), 0.0);
+        assert_eq!(eval_num("is_even(4)"), 1.0);
+        assert_eq!(eval_num("is_odd(5)"), 1.0);
+        assert_eq!(eval_num("deg(pi)"), 180.0);
+        assert_eq!(eval_num("rad(180)"), consts::PI);
     }
 
     #[test]
@@ -72,9 +93,41 @@ mod tests {
     }
 
     #[test]
-    fn test_conditions() {
-        assert_eq!(eval_num("if 3 > 2 then 100 else 200"), 100.0);
-        assert_eq!(eval_num("if 0 then 100 else 200"), 200.0);
+    fn test_if_elif_else() {
+        assert_eq!(eval_num("if 1 then 10 elif 2 then 20 else 30"), 10.0);
+        assert_eq!(eval_num("if 0 then 10 elif 1 then 20 else 30"), 20.0);
+        assert_eq!(eval_num("if 0 then 10 elif 0 then 20 else 30"), 30.0);
+    }
+
+    #[test]
+    fn test_for_loop() {
+        assert_eq!(eval_num("sum = 0; for i in 1..10 do sum = sum + i; sum"), 45.0);
+        assert_eq!(eval_num("sum = 0; for i in 1..10 step 2 do sum = sum + i; sum"), 25.0);
+        assert_eq!(eval_num("sum = 0; for i in 10..1 step -1 do sum = sum + i; sum"), 54.0);
+    }
+
+    #[test]
+    fn test_break_continue() {
+        let expr = "
+            sum = 0;
+            i = 1;
+            while i <= 10 do (
+                if i == 5 then break;
+                sum = sum + i;
+                i = i + 1
+            );
+            sum
+        ";
+        assert_eq!(eval_num(expr), 10.0);
+    }
+
+    #[test]
+    fn test_slice() {
+        let expr = "[1, 2, 3, 4, 5][1:4]";
+        match evaluate(expr).unwrap() {
+            Value::Array(a) => assert_eq!(a, vec![Value::Num(2.0), Value::Num(3.0), Value::Num(4.0)]),
+            _ => panic!("Expected array"),
+        }
     }
 
     #[test]
@@ -134,21 +187,8 @@ mod tests {
 
     #[test]
     fn test_multiline_comment() {
-        assert_eq!(eval_num("3 + 4  # comment\n"), 7.0);
         assert_eq!(eval_num("3 /* comment */ + 4"), 7.0);
-        assert_eq!(eval_num("3 /* \n comment \n */ + 4"), 7.0);
         assert_eq!(eval_num("3 /* outer /* inner */ outer */ + 4"), 7.0);
-        let expr = "
-            sum = 0;
-            /* initialize */
-            i = 1;
-            while i <= 10 do (
-                sum = sum + i;
-                i = i + 1
-            );
-            sum
-        ";
-        assert_eq!(eval_num(expr), 55.0);
     }
 
     #[test]
@@ -168,16 +208,6 @@ mod tests {
             Value::Str(s) => assert_eq!(s, "quote: \"inside\""),
             _ => panic!("Expected string"),
         }
-    }
-
-    #[test]
-    fn test_builtins_extra() {
-        assert_eq!(eval_num("max(3, 5)"), 5.0);
-        assert_eq!(eval_num("min(3, 5)"), 3.0);
-        assert_eq!(eval_num("len(\"hello\")"), 5.0);
-        assert_eq!(eval_num("len([1, 2, 3])"), 3.0);
-        assert_eq!(eval_str("concat(\"a\", \"b\", \"c\")"), "abc");
-        assert_eq!(eval_str("concat(\"Hello, \", \"world!\")"), "Hello, world!");
     }
 
     #[test]

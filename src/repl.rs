@@ -1,4 +1,4 @@
-use crate::{Evaluator, Value, evaluate_with_context};
+use crate::{Evaluator, Value, evaluate_with_context, VERSION};
 use std::collections::HashMap;
 use std::f64::consts;
 use std::io::{self, Write};
@@ -10,9 +10,10 @@ pub fn repl() -> Result<(), String> {
 
     let mut evaluator = Evaluator::new();
 
-    println!("ExprLang v0.1.0 (Rust Math Expression Language)");
+    println!("ExprLang v{} (Rust Math Expression Language)", VERSION);
     println!("Supported: arithmetic, comparisons, logic (&&, ||, !),");
-    println!("strings, arrays, indexing, functions, loops, conditions.");
+    println!("strings, arrays, indexing, slicing, functions, loops, conditions.");
+    println!("Type 'exit' or 'quit' to exit.");
     println!();
 
     loop {

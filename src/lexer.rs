@@ -26,9 +26,17 @@ pub enum Token {
     If,
     Then,
     Else,
+    Elif,
     While,
     Do,
+    For,
+    In,
+    Step,
+    Break,
+    Continue,
     Fn,
+    Colon,
+    DotDot,      // 必须有
     Eof,
 }
 
@@ -43,6 +51,17 @@ impl Lexer {
             input: input.chars().collect(),
             pos: 0,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn current_position(&self) -> crate::error::Position {
+        let line = self.input[..self.pos].iter().filter(|&&c| c == '\n').count() + 1;
+        let column = self.input[..self.pos]
+            .iter()
+            .rev()
+            .take_while(|&&c| c != '\n')
+            .count() + 1;
+        crate::error::Position::new(line, column, self.pos)
     }
 
     fn peek_char(&self) -> Option<char> {
@@ -61,10 +80,24 @@ impl Lexer {
 
     fn read_number(&mut self) -> f64 {
         let mut num_str = String::new();
+        let mut has_dot = false;
         while let Some(c) = self.peek_char() {
-            if c.is_ascii_digit() || c == '.' {
+            if c.is_ascii_digit() {
                 num_str.push(c);
                 self.pos += 1;
+            } else if c == '.' && !has_dot {
+                // 只有当下一个字符是数字时才把点作为小数点
+                if let Some(next) = self.input.get(self.pos + 1) {
+                    if next.is_ascii_digit() {
+                        num_str.push(c);
+                        self.pos += 1;
+                        has_dot = true;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -73,7 +106,7 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        self.pos += 1; // skip "
+        self.pos += 1;
         let mut s = String::new();
         while let Some(c) = self.peek_char() {
             if c == '"' {
@@ -102,10 +135,11 @@ impl Lexer {
         s
     }
 
+    // 关键：允许标识符中包含数字（atan2 等）
     fn read_ident(&mut self) -> String {
         let mut ident = String::new();
         while let Some(c) = self.peek_char() {
-            if c.is_alphabetic() || c == '_' {
+            if c.is_alphanumeric() || c == '_' {
                 ident.push(c);
                 self.pos += 1;
             } else {
@@ -184,6 +218,11 @@ impl Lexer {
                         self.pos += 2;
                         Token::Or
                     }
+                    // 关键：识别 `..`
+                    ('.', Some('.')) => {
+                        self.pos += 2;
+                        Token::DotDot
+                    }
                     _ => match c {
                         '+' => {
                             self.pos += 1;
@@ -241,6 +280,10 @@ impl Lexer {
                             self.pos += 1;
                             Token::Not
                         }
+                        ':' => {
+                            self.pos += 1;
+                            Token::Colon
+                        }
                         '"' => {
                             let s = self.read_string();
                             Token::String(s)
@@ -255,8 +298,14 @@ impl Lexer {
                                 "if" => Token::If,
                                 "then" => Token::Then,
                                 "else" => Token::Else,
+                                "elif" => Token::Elif,
                                 "while" => Token::While,
                                 "do" => Token::Do,
+                                "for" => Token::For,
+                                "in" => Token::In,
+                                "step" => Token::Step,
+                                "break" => Token::Break,
+                                "continue" => Token::Continue,
                                 "fn" => Token::Fn,
                                 _ => Token::Ident(id),
                             }
