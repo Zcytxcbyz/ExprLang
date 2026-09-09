@@ -15,12 +15,12 @@
 #![allow(non_snake_case)]
 
 mod ast;
+pub mod error;
 mod evaluator;
 mod lexer;
 mod parser;
 mod repl;
 mod value;
-pub mod error;
 
 pub use evaluator::Evaluator;
 pub use evaluator::{evaluate, evaluate_with_context, evaluate_with_env};
@@ -131,9 +131,18 @@ mod tests {
 
     #[test]
     fn test_for_loop() {
-        assert_eq!(eval_num("sum = 0; for i in 1..10 do sum = sum + i; sum"), 45.0);
-        assert_eq!(eval_num("sum = 0; for i in 1..10 step 2 do sum = sum + i; sum"), 25.0);
-        assert_eq!(eval_num("sum = 0; for i in 10..1 step -1 do sum = sum + i; sum"), 54.0);
+        assert_eq!(
+            eval_num("sum = 0; for i in 1..10 do sum = sum + i; sum"),
+            45.0
+        );
+        assert_eq!(
+            eval_num("sum = 0; for i in 1..10 step 2 do sum = sum + i; sum"),
+            25.0
+        );
+        assert_eq!(
+            eval_num("sum = 0; for i in 10..1 step -1 do sum = sum + i; sum"),
+            54.0
+        );
     }
 
     // ===== break and continue =====
@@ -159,7 +168,9 @@ mod tests {
     fn test_slice() {
         let expr = "[1, 2, 3, 4, 5][1:4]";
         match evaluate(expr).unwrap() {
-            Value::Array(a) => assert_eq!(a, vec![Value::Num(2.0), Value::Num(3.0), Value::Num(4.0)]),
+            Value::Array(a) => {
+                assert_eq!(a, vec![Value::Num(2.0), Value::Num(3.0), Value::Num(4.0)])
+            }
             _ => panic!("Expected array"),
         }
     }
@@ -362,7 +373,9 @@ mod tests {
     fn test_slice_start_end_none() {
         let expr = "[1,2,3][0:3]";
         match evaluate(expr).unwrap() {
-            Value::Array(a) => assert_eq!(a, vec![Value::Num(1.0), Value::Num(2.0), Value::Num(3.0)]),
+            Value::Array(a) => {
+                assert_eq!(a, vec![Value::Num(1.0), Value::Num(2.0), Value::Num(3.0)])
+            }
             _ => panic!("Expected array"),
         }
     }

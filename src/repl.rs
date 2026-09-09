@@ -3,7 +3,7 @@
 //! Allows users to interactively enter expressions and see results
 //! in real time.
 
-use crate::{Evaluator, Value, evaluate_with_context, VERSION};
+use crate::{Evaluator, VERSION, Value, evaluate_with_context};
 use std::collections::HashMap;
 use std::f64::consts;
 use std::io::{self, Write};

@@ -232,41 +232,36 @@ impl Parser {
     /// Parses postfix expressions (array indexing and slicing).
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
-        loop {
-            match self.current {
-                Token::LBracket => {
-                    self.next_token();
-                    let index_or_slice = self.parse_expr()?;
-                    if self.current == Token::Colon {
-                        // Slice: arr[start:end]
-                        self.next_token();
-                        let end = if self.current != Token::RBracket {
-                            Some(Box::new(self.parse_expr()?))
-                        } else {
-                            None
-                        };
-                        if self.current != Token::RBracket {
-                            return Err("Expected ']'".to_string());
-                        }
-                        self.next_token();
-                        expr = Expr::Slice {
-                            array: Box::new(expr),
-                            start: Some(Box::new(index_or_slice)),
-                            end,
-                        };
-                    } else {
-                        // Index: arr[index]
-                        if self.current != Token::RBracket {
-                            return Err("Expected ']'".to_string());
-                        }
-                        self.next_token();
-                        expr = Expr::Index {
-                            array: Box::new(expr),
-                            index: Box::new(index_or_slice),
-                        };
-                    }
+        while let Token::LBracket = self.current {
+            self.next_token();
+            let index_or_slice = self.parse_expr()?;
+            if self.current == Token::Colon {
+                // Slice: arr[start:end]
+                self.next_token();
+                let end = if self.current != Token::RBracket {
+                    Some(Box::new(self.parse_expr()?))
+                } else {
+                    None
+                };
+                if self.current != Token::RBracket {
+                    return Err("Expected ']'".to_string());
                 }
-                _ => break,
+                self.next_token();
+                expr = Expr::Slice {
+                    array: Box::new(expr),
+                    start: Some(Box::new(index_or_slice)),
+                    end,
+                };
+            } else {
+                // Index: arr[index]
+                if self.current != Token::RBracket {
+                    return Err("Expected ']'".to_string());
+                }
+                self.next_token();
+                expr = Expr::Index {
+                    array: Box::new(expr),
+                    index: Box::new(index_or_slice),
+                };
             }
         }
         Ok(expr)
@@ -450,7 +445,13 @@ impl Parser {
         self.next_token();
 
         let body = Box::new(self.parse_expr()?);
-        Ok(Expr::For { var, start, end, step, body })
+        Ok(Expr::For {
+            var,
+            start,
+            end,
+            step,
+            body,
+        })
     }
 
     /// Parses a function definition.

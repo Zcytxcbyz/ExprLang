@@ -17,7 +17,11 @@ pub struct Position {
 impl Position {
     /// Creates a new position.
     pub fn new(line: usize, column: usize, offset: usize) -> Self {
-        Position { line, column, offset }
+        Position {
+            line,
+            column,
+            offset,
+        }
     }
 }
 
@@ -31,19 +35,14 @@ pub enum ExprLangError {
         snippet: String,
     },
     /// A type error with position.
-    TypeError {
-        message: String,
-        pos: Position,
-    },
+    TypeError { message: String, pos: Position },
     /// A runtime error with optional position.
     RuntimeError {
         message: String,
         pos: Option<Position>,
     },
     /// Internal control flow signal for break/continue.
-    ControlFlow {
-        kind: ControlFlowKind,
-    },
+    ControlFlow { kind: ControlFlowKind },
 }
 
 /// Control flow signals for loop management.
@@ -62,17 +61,33 @@ impl std::fmt::Display for ExprLangError {
     /// Type and runtime errors include position information when available.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExprLangError::Syntax { message, pos, snippet } => {
-                writeln!(f, "SyntaxError at line {}, column {}:", pos.line, pos.column)?;
+            ExprLangError::Syntax {
+                message,
+                pos,
+                snippet,
+            } => {
+                writeln!(
+                    f,
+                    "SyntaxError at line {}, column {}:",
+                    pos.line, pos.column
+                )?;
                 writeln!(f, "  {}", snippet)?;
                 write!(f, "  {}^ {}", " ".repeat(pos.column - 1), message)
             }
             ExprLangError::TypeError { message, pos } => {
-                write!(f, "TypeError at line {}, column {}: {}", pos.line, pos.column, message)
+                write!(
+                    f,
+                    "TypeError at line {}, column {}: {}",
+                    pos.line, pos.column, message
+                )
             }
             ExprLangError::RuntimeError { message, pos } => {
                 if let Some(pos) = pos {
-                    write!(f, "RuntimeError at line {}, column {}: {}", pos.line, pos.column, message)
+                    write!(
+                        f,
+                        "RuntimeError at line {}, column {}: {}",
+                        pos.line, pos.column, message
+                    )
                 } else {
                     write!(f, "RuntimeError: {}", message)
                 }

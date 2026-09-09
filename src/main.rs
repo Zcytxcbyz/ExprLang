@@ -3,7 +3,7 @@
 //! Provides a REPL (Read-Eval-Print Loop) for interactive use and
 //! script execution from files.
 
-use expr_lang::{Evaluator, Value, evaluate_with_context, repl, VERSION};
+use expr_lang::{Evaluator, VERSION, Value, evaluate_with_context, repl};
 use std::collections::HashMap;
 use std::f64::consts;
 

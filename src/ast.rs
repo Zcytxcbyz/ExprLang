@@ -16,10 +16,7 @@ pub enum Expr {
     /// An array literal.
     Array(Vec<Expr>),
     /// Array indexing: `array[index]`
-    Index {
-        array: Box<Expr>,
-        index: Box<Expr>,
-    },
+    Index { array: Box<Expr>, index: Box<Expr> },
     /// Array slicing: `array[start:end]`
     Slice {
         array: Box<Expr>,
@@ -35,20 +32,11 @@ pub enum Expr {
         right: Box<Expr>,
     },
     /// Unary operation (e.g., negation `-`, logical not `!`).
-    Unary {
-        op: UnaryOp,
-        expr: Box<Expr>,
-    },
+    Unary { op: UnaryOp, expr: Box<Expr> },
     /// Function call: `name(args...)`
-    Call {
-        name: String,
-        args: Vec<Expr>,
-    },
+    Call { name: String, args: Vec<Expr> },
     /// Variable assignment: `name = expr`
-    Assign {
-        name: String,
-        expr: Box<Expr>,
-    },
+    Assign { name: String, expr: Box<Expr> },
     /// A sequence of expressions separated by semicolons.
     Sequence(Vec<Expr>),
     /// Conditional expression: `if cond then expr [elif cond then expr]* [else expr]`
@@ -57,10 +45,7 @@ pub enum Expr {
         else_branch: Option<Box<Expr>>,
     },
     /// While loop: `while cond do body`
-    While {
-        cond: Box<Expr>,
-        body: Box<Expr>,
-    },
+    While { cond: Box<Expr>, body: Box<Expr> },
     /// For loop: `for var in start..end [step step] do body`
     For {
         var: String,

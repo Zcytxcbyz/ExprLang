@@ -75,12 +75,17 @@ impl Lexer {
     /// Returns the current position in the input.
     #[allow(dead_code)]
     pub fn current_position(&self) -> crate::error::Position {
-        let line = self.input[..self.pos].iter().filter(|&&c| c == '\n').count() + 1;
+        let line = self.input[..self.pos]
+            .iter()
+            .filter(|&&c| c == '\n')
+            .count()
+            + 1;
         let column = self.input[..self.pos]
             .iter()
             .rev()
             .take_while(|&&c| c != '\n')
-            .count() + 1;
+            .count()
+            + 1;
         crate::error::Position::new(line, column, self.pos)
     }
 

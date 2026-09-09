@@ -171,8 +171,8 @@ impl Evaluator {
             }
 
             // Control flow: break and continue
-            Expr::Break => return Err("__break__".to_string()),
-            Expr::Continue => return Err("__continue__".to_string()),
+            Expr::Break => Err("__break__".to_string()),
+            Expr::Continue => Err("__continue__".to_string()),
 
             // Function calls (built-in or user-defined)
             Expr::Call { name, args } => {
@@ -220,7 +220,10 @@ impl Evaluator {
             }
 
             // Conditional expression
-            Expr::If { branches, else_branch } => {
+            Expr::If {
+                branches,
+                else_branch,
+            } => {
                 for (cond, then_expr) in branches {
                     let cond_val = self.eval_internal(cond, env)?;
                     if Self::as_bool(&cond_val)? {

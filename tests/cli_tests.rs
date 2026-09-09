@@ -13,7 +13,11 @@ use std::process::{Command, Stdio};
 /// This attempts to find the binary in the target/debug directory,
 /// with fallback to `cargo run` if not found.
 fn get_binary_path() -> PathBuf {
-    let bin_name = if cfg!(windows) { "expr_lang.exe" } else { "expr_lang" };
+    let bin_name = if cfg!(windows) {
+        "expr_lang.exe"
+    } else {
+        "expr_lang"
+    };
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
@@ -78,7 +82,7 @@ fn test_cli_help() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Usage:"));
-    assert!(stdout.contains("REPL"));
+    assert!(stdout.contains("interactive REPL"));
     assert!(stdout.contains("script"));
 }
 
@@ -203,7 +207,9 @@ fn test_cli_no_args_repl() {
 
     let mut stdin = child.stdin.take().expect("Failed to get stdin");
     std::thread::spawn(move || {
-        stdin.write_all(b"exit\n").expect("Failed to write to stdin");
+        stdin
+            .write_all(b"exit\n")
+            .expect("Failed to write to stdin");
         stdin.flush().expect("Failed to flush stdin");
     });
 
