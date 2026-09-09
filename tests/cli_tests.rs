@@ -82,8 +82,9 @@ fn test_cli_help() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Usage:"));
-    assert!(stdout.contains("interactive REPL"));
-    assert!(stdout.contains("script"));
+    assert!(stdout.contains("Start interactive REPL"));
+    assert!(stdout.contains("Execute script file"));
+    assert!(stdout.contains("Show version"));
 }
 
 #[test]
