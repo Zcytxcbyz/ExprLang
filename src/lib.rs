@@ -263,4 +263,96 @@ mod tests {
             _ => panic!("Expected string"),
         }
     }
+    // ===== 补充测试（修正版） =====
+
+    #[test]
+    fn test_for_step_zero() {
+        assert!(evaluate("for i in 1..10 step 0 do 1").is_err());
+    }
+
+    #[test]
+    fn test_for_break() {
+        let expr = "
+        sum = 0;
+        for i in 1..10 do (
+            if i > 5 then break else 0;
+            sum = sum + i
+        );
+        sum
+    ";
+        assert_eq!(eval_num(expr), 15.0);
+    }
+
+    #[test]
+    fn test_for_continue() {
+        let expr = "
+        sum = 0;
+        for i in 1..10 do (
+            if is_even(i) then continue else 0;
+            sum = sum + i
+        );
+        sum
+    ";
+        assert_eq!(eval_num(expr), 25.0);
+    }
+    
+    #[test]
+    fn test_slice_out_of_bounds() {
+        // 正数越界应报错
+        assert!(evaluate("[1,2,3][3:5]").is_err());
+        // 负数索引当前不支持，暂不测试
+    }
+
+    #[test]
+    fn test_slice_start_end_none() {
+        // 当前使用完整语法测试切片
+        let expr = "[1,2,3][0:3]";
+        match evaluate(expr).unwrap() {
+            Value::Array(a) => assert_eq!(a, vec![Value::Num(1.0), Value::Num(2.0), Value::Num(3.0)]),
+            _ => panic!("Expected array"),
+        }
+        // TODO: 支持 arr[:] 和 arr[1:] 语法后再扩展
+    }
+
+    #[test]
+    fn test_builtin_type_errors() {
+        assert!(evaluate("log(\"a\", 2)").is_err());
+        assert!(evaluate("hypot(\"a\", 3)").is_err());
+        assert!(evaluate("atan2(1, \"b\")").is_err());
+        assert!(evaluate("factorial(\"5\")").is_err());
+        assert!(evaluate("sign([])").is_err());
+        assert!(evaluate("is_even(3.5)").is_err());
+        assert!(evaluate("deg(\"pi\")").is_err());
+    }
+
+    #[test]
+    fn test_value_display() {
+        let empty = Value::Array(vec![]);
+        assert_eq!(empty.to_string(), "[]");
+        let single = Value::Array(vec![Value::Num(42.0)]);
+        assert_eq!(single.to_string(), "[42]");
+        let nested = Value::Array(vec![
+            Value::Array(vec![Value::Num(1.0), Value::Num(2.0)]),
+            Value::Array(vec![Value::Num(3.0), Value::Num(4.0)]),
+        ]);
+        assert_eq!(nested.to_string(), "[[1, 2], [3, 4]]");
+        let mixed = Value::Array(vec![Value::Num(1.0), Value::Str("hello".to_string())]);
+        assert_eq!(mixed.to_string(), "[1, \"hello\"]");
+    }
+
+    #[test]
+    fn test_for_negative_step() {
+        let expr = "
+        sum = 0;
+        for i in 10..1 step -1 do sum = sum + i;
+        sum
+    ";
+        assert_eq!(eval_num(expr), 54.0);
+    }
+
+    #[test]
+    fn test_for_non_numeric_bounds() {
+        assert!(evaluate("for i in \"a\"..10 do 1").is_err());
+        assert!(evaluate("for i in 1..\"b\" do 1").is_err());
+    }
 }
