@@ -1,3 +1,17 @@
+//! ExprLang: A lightweight mathematical expression language.
+//!
+//! This crate provides a complete interpreter for ExprLang, supporting
+//! arithmetic, variables, functions, loops, conditionals, arrays, and more.
+//!
+//! # Examples
+//!
+//! ```
+//! use expr_lang::evaluate;
+//!
+//! let result = evaluate("3 + 4 * 2").unwrap();
+//! assert_eq!(result.to_string(), "11");
+//! ```
+
 #![allow(non_snake_case)]
 
 mod ast;
@@ -13,6 +27,7 @@ pub use evaluator::{evaluate, evaluate_with_context, evaluate_with_env};
 pub use repl::repl;
 pub use value::Value;
 
+/// The current version of ExprLang, read from Cargo.toml at compile time.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(test)]
@@ -21,6 +36,7 @@ mod tests {
     use std::collections::HashMap;
     use std::f64::consts;
 
+    /// Helper: evaluate an expression and extract a numeric result.
     fn eval_num(expr: &str) -> f64 {
         match evaluate(expr).unwrap() {
             Value::Num(n) => n,
@@ -36,6 +52,8 @@ mod tests {
         }
     }
 
+    // ===== Basic arithmetic =====
+
     #[test]
     fn test_arithmetic() {
         assert_eq!(eval_num("3 + 4 * 2"), 11.0);
@@ -45,6 +63,8 @@ mod tests {
         assert_eq!(eval_num("1 + 2 + 3 * (4 + 5)"), 30.0);
         assert_eq!(eval_num("-3 + 5"), 2.0);
     }
+
+    // ===== Built-in functions (v0.1.0) =====
 
     #[test]
     fn test_builtins_old() {
@@ -57,6 +77,8 @@ mod tests {
         assert_eq!(eval_num("ceil(3.2)"), 4.0);
         assert_eq!(eval_num("round(3.5)"), 4.0);
     }
+
+    // ===== New built-in functions (v0.3.0) =====
 
     #[test]
     fn test_new_builtins() {
@@ -73,6 +95,8 @@ mod tests {
         assert_eq!(eval_num("rad(180)"), consts::PI);
     }
 
+    // ===== Comparisons =====
+
     #[test]
     fn test_comparisons() {
         assert_eq!(eval_num("5 > 3"), 1.0);
@@ -80,6 +104,8 @@ mod tests {
         assert_eq!(eval_num("2 != 2"), 0.0);
         assert_eq!(eval_num("5 <= 5"), 1.0);
     }
+
+    // ===== Variables and sequences =====
 
     #[test]
     fn test_variables_and_sequence() {
@@ -92,6 +118,8 @@ mod tests {
         assert_eq!(val2, Value::Num(11.0));
     }
 
+    // ===== if-elif-else =====
+
     #[test]
     fn test_if_elif_else() {
         assert_eq!(eval_num("if 1 then 10 elif 2 then 20 else 30"), 10.0);
@@ -99,12 +127,16 @@ mod tests {
         assert_eq!(eval_num("if 0 then 10 elif 0 then 20 else 30"), 30.0);
     }
 
+    // ===== for loop =====
+
     #[test]
     fn test_for_loop() {
         assert_eq!(eval_num("sum = 0; for i in 1..10 do sum = sum + i; sum"), 45.0);
         assert_eq!(eval_num("sum = 0; for i in 1..10 step 2 do sum = sum + i; sum"), 25.0);
         assert_eq!(eval_num("sum = 0; for i in 10..1 step -1 do sum = sum + i; sum"), 54.0);
     }
+
+    // ===== break and continue =====
 
     #[test]
     fn test_break_continue() {
@@ -121,6 +153,8 @@ mod tests {
         assert_eq!(eval_num(expr), 10.0);
     }
 
+    // ===== slicing =====
+
     #[test]
     fn test_slice() {
         let expr = "[1, 2, 3, 4, 5][1:4]";
@@ -129,6 +163,8 @@ mod tests {
             _ => panic!("Expected array"),
         }
     }
+
+    // ===== while loop =====
 
     #[test]
     fn test_loop() {
@@ -144,6 +180,8 @@ mod tests {
         assert_eq!(eval_num(expr), 55.0);
     }
 
+    // ===== Functions and recursion =====
+
     #[test]
     fn test_functions() {
         let expr = "
@@ -152,6 +190,8 @@ mod tests {
         ";
         assert_eq!(eval_num(expr), 120.0);
     }
+
+    // ===== Strings =====
 
     #[test]
     fn test_strings() {
@@ -162,6 +202,8 @@ mod tests {
         }
     }
 
+    // ===== Arrays =====
+
     #[test]
     fn test_arrays() {
         let expr = "[1, 2, 3][1]";
@@ -171,6 +213,8 @@ mod tests {
         }
     }
 
+    // ===== Logic =====
+
     #[test]
     fn test_logic() {
         assert_eq!(eval_num("1 && 0"), 0.0);
@@ -178,6 +222,8 @@ mod tests {
         assert_eq!(eval_num("!0"), 1.0);
         assert_eq!(eval_num("!(3 > 2)"), 0.0);
     }
+
+    // ===== Comments =====
 
     #[test]
     fn test_comments() {
@@ -190,6 +236,8 @@ mod tests {
         assert_eq!(eval_num("3 /* comment */ + 4"), 7.0);
         assert_eq!(eval_num("3 /* outer /* inner */ outer */ + 4"), 7.0);
     }
+
+    // ===== String escapes =====
 
     #[test]
     fn test_string_escapes() {
@@ -210,6 +258,8 @@ mod tests {
         }
     }
 
+    // ===== Error handling =====
+
     #[test]
     fn test_error_handling() {
         assert!(evaluate("1 / 0").is_err());
@@ -223,6 +273,8 @@ mod tests {
         assert!(evaluate("(1 + 2").is_err());
         assert!(evaluate("1 + + 2").is_err());
     }
+
+    // ===== Function scope =====
 
     #[test]
     fn test_function_scope() {
@@ -238,6 +290,8 @@ mod tests {
         assert!(!env.contains_key("y"));
     }
 
+    // ===== Array edge cases =====
+
     #[test]
     fn test_array_edge_cases() {
         match evaluate("[]").unwrap() {
@@ -251,6 +305,8 @@ mod tests {
         assert_eq!(eval_num("[1+2, 3*4][1]"), 12.0);
     }
 
+    // ===== String edge cases =====
+
     #[test]
     fn test_string_edge_cases() {
         match evaluate("\"\"").unwrap() {
@@ -263,7 +319,8 @@ mod tests {
             _ => panic!("Expected string"),
         }
     }
-    // ===== 补充测试（修正版） =====
+
+    // ===== Additional tests (v0.3.0) =====
 
     #[test]
     fn test_for_step_zero() {
@@ -273,45 +330,41 @@ mod tests {
     #[test]
     fn test_for_break() {
         let expr = "
-        sum = 0;
-        for i in 1..10 do (
-            if i > 5 then break else 0;
-            sum = sum + i
-        );
-        sum
-    ";
+            sum = 0;
+            for i in 1..10 do (
+                if i > 5 then break else 0;
+                sum = sum + i
+            );
+            sum
+        ";
         assert_eq!(eval_num(expr), 15.0);
     }
 
     #[test]
     fn test_for_continue() {
         let expr = "
-        sum = 0;
-        for i in 1..10 do (
-            if is_even(i) then continue else 0;
-            sum = sum + i
-        );
-        sum
-    ";
+            sum = 0;
+            for i in 1..10 do (
+                if is_even(i) then continue else 0;
+                sum = sum + i
+            );
+            sum
+        ";
         assert_eq!(eval_num(expr), 25.0);
     }
-    
+
     #[test]
     fn test_slice_out_of_bounds() {
-        // 正数越界应报错
         assert!(evaluate("[1,2,3][3:5]").is_err());
-        // 负数索引当前不支持，暂不测试
     }
 
     #[test]
     fn test_slice_start_end_none() {
-        // 当前使用完整语法测试切片
         let expr = "[1,2,3][0:3]";
         match evaluate(expr).unwrap() {
             Value::Array(a) => assert_eq!(a, vec![Value::Num(1.0), Value::Num(2.0), Value::Num(3.0)]),
             _ => panic!("Expected array"),
         }
-        // TODO: 支持 arr[:] 和 arr[1:] 语法后再扩展
     }
 
     #[test]
@@ -343,10 +396,10 @@ mod tests {
     #[test]
     fn test_for_negative_step() {
         let expr = "
-        sum = 0;
-        for i in 10..1 step -1 do sum = sum + i;
-        sum
-    ";
+            sum = 0;
+            for i in 10..1 step -1 do sum = sum + i;
+            sum
+        ";
         assert_eq!(eval_num(expr), 54.0);
     }
 

@@ -1,8 +1,17 @@
+//! Lexical analyzer for ExprLang.
+//!
+//! Converts source code strings into a sequence of tokens.
+//! Supports numbers, strings, identifiers, operators, keywords, and comments.
+
+/// All token types recognized by the ExprLang lexer.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    // Literals
     Number(f64),
     String(String),
     Ident(String),
+
+    // Operators
     Plus,
     Minus,
     Star,
@@ -14,15 +23,21 @@ pub enum Token {
     Assign,
     Comma,
     Semicolon,
+
+    // Comparison
     Less,
     LessEqual,
     Greater,
     GreaterEqual,
     Equal,
     NotEqual,
+
+    // Logical
     And,
     Or,
     Not,
+
+    // Keywords
     If,
     Then,
     Else,
@@ -35,17 +50,21 @@ pub enum Token {
     Break,
     Continue,
     Fn,
+
+    // Delimiters
     Colon,
-    DotDot,      // 必须有
+    DotDot,
     Eof,
 }
 
+/// The lexer state.
 pub struct Lexer {
     input: Vec<char>,
     pos: usize,
 }
 
 impl Lexer {
+    /// Creates a new lexer for the given input string.
     pub fn new(input: &str) -> Self {
         Lexer {
             input: input.chars().collect(),
@@ -53,6 +72,7 @@ impl Lexer {
         }
     }
 
+    /// Returns the current position in the input.
     #[allow(dead_code)]
     pub fn current_position(&self) -> crate::error::Position {
         let line = self.input[..self.pos].iter().filter(|&&c| c == '\n').count() + 1;
@@ -64,10 +84,12 @@ impl Lexer {
         crate::error::Position::new(line, column, self.pos)
     }
 
+    /// Peeks at the next character without consuming it.
     fn peek_char(&self) -> Option<char> {
         self.input.get(self.pos).copied()
     }
 
+    /// Skips whitespace characters.
     fn skip_whitespace(&mut self) {
         while let Some(c) = self.peek_char() {
             if c.is_whitespace() {
@@ -78,6 +100,11 @@ impl Lexer {
         }
     }
 
+    /// Reads a numeric literal from the input.
+    ///
+    /// Supports integers and floating-point numbers with a decimal point.
+    /// The decimal point is only considered part of the number if followed
+    /// by a digit, to avoid confusion with the `..` range operator.
     fn read_number(&mut self) -> f64 {
         let mut num_str = String::new();
         let mut has_dot = false;
@@ -86,7 +113,7 @@ impl Lexer {
                 num_str.push(c);
                 self.pos += 1;
             } else if c == '.' && !has_dot {
-                // 只有当下一个字符是数字时才把点作为小数点
+                // Only treat '.' as decimal point if followed by a digit
                 if let Some(next) = self.input.get(self.pos + 1) {
                     if next.is_ascii_digit() {
                         num_str.push(c);
@@ -105,8 +132,11 @@ impl Lexer {
         num_str.parse().unwrap_or(0.0)
     }
 
+    /// Reads a string literal from the input.
+    ///
+    /// Supports escape sequences: `\n`, `\t`, `\r`, `\"`, `\\`.
     fn read_string(&mut self) -> String {
-        self.pos += 1;
+        self.pos += 1; // skip opening quote
         let mut s = String::new();
         while let Some(c) = self.peek_char() {
             if c == '"' {
@@ -135,7 +165,10 @@ impl Lexer {
         s
     }
 
-    // 关键：允许标识符中包含数字（atan2 等）
+    /// Reads an identifier or keyword.
+    ///
+    /// Identifiers can contain alphanumeric characters and underscores.
+    /// Numbers within identifiers are allowed (e.g., `atan2`).
     fn read_ident(&mut self) -> String {
         let mut ident = String::new();
         while let Some(c) = self.peek_char() {
@@ -149,14 +182,17 @@ impl Lexer {
         ident
     }
 
+    /// Skips a nested multi-line comment (`/* ... */`).
     fn skip_multiline_comment(&mut self) {
         self.pos += 2;
         let mut depth = 1;
         while let Some(c) = self.peek_char() {
             if c == '/' && self.input.get(self.pos + 1) == Some(&'*') {
+                // Nested comment starts
                 self.pos += 2;
                 depth += 1;
             } else if c == '*' && self.input.get(self.pos + 1) == Some(&'/') {
+                // Nested comment ends
                 self.pos += 2;
                 depth -= 1;
                 if depth == 0 {
@@ -168,9 +204,13 @@ impl Lexer {
         }
     }
 
+    /// Returns the next token from the input.
+    ///
+    /// Skips whitespace and comments before returning the next token.
     pub fn next_token(&mut self) -> Token {
         loop {
             self.skip_whitespace();
+            // Skip single-line comments starting with '#'
             if let Some('#') = self.peek_char() {
                 while let Some(c) = self.peek_char() {
                     if c == '\n' {
@@ -180,6 +220,7 @@ impl Lexer {
                 }
                 continue;
             }
+            // Skip multi-line comments
             if let (Some('/'), Some('*')) =
                 (self.peek_char(), self.input.get(self.pos + 1).copied())
             {
@@ -194,6 +235,7 @@ impl Lexer {
             Some(c) => {
                 let next = self.input.get(self.pos + 1).copied();
                 match (c, next) {
+                    // Multi-character operators
                     ('<', Some('=')) => {
                         self.pos += 2;
                         Token::LessEqual
@@ -218,11 +260,11 @@ impl Lexer {
                         self.pos += 2;
                         Token::Or
                     }
-                    // 关键：识别 `..`
                     ('.', Some('.')) => {
                         self.pos += 2;
                         Token::DotDot
                     }
+                    // Single-character tokens
                     _ => match c {
                         '+' => {
                             self.pos += 1;

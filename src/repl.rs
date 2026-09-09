@@ -1,8 +1,18 @@
+//! Interactive REPL (Read-Eval-Print Loop) for ExprLang.
+//!
+//! Allows users to interactively enter expressions and see results
+//! in real time.
+
 use crate::{Evaluator, Value, evaluate_with_context, VERSION};
 use std::collections::HashMap;
 use std::f64::consts;
 use std::io::{self, Write};
 
+/// Runs the interactive REPL.
+///
+/// The REPL maintains a persistent environment and evaluator,
+/// so variables and functions defined in one session persist for
+/// subsequent inputs.
 pub fn repl() -> Result<(), String> {
     let mut env = HashMap::new();
     env.insert("pi".to_string(), Value::Num(consts::PI));

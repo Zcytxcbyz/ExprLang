@@ -2,6 +2,13 @@
 name = "expr_lang"
 version = "0.3.0"
 edition = "2024"
+description = "ExprLang: A lightweight mathematical expression language"
+license = "MIT"
+repository = "https://github.com/Zcytxcbyz/ExprLang"
+homepage = "https://github.com/Zcytxcbyz/ExprLang"
+readme = "README.md"
+keywords = ["math", "expression", "interpreter", "language", "scripting"]
+categories = ["command-line-utilities", "science"]
 
 [[bin]]
 name = "expr_lang"

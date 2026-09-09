@@ -1,16 +1,28 @@
+//! ExprLang command-line interface.
+//!
+//! Provides a REPL (Read-Eval-Print Loop) for interactive use and
+//! script execution from files.
+
 use expr_lang::{Evaluator, Value, evaluate_with_context, repl, VERSION};
 use std::collections::HashMap;
 use std::f64::consts;
 
+/// Entry point for the ExprLang CLI.
+///
+/// - With no arguments: starts the REPL.
+/// - With `--version` or `-V`: prints the version and exits.
+/// - With a file path: executes the script file and prints the result.
+/// - With `--help` or `-h`: prints usage information.
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
 
-    // 处理 --version
+    // Handle version flag
     if args.iter().any(|a| a == "--version" || a == "-V") {
         println!("ExprLang v{}", VERSION);
         return Ok(());
     }
 
+    // Handle file execution or help
     if args.len() > 1 {
         let file_path = &args[1];
         if file_path == "--help" || file_path == "-h" {

@@ -1,9 +1,13 @@
-// tests/repl_test.rs
+//! Tests for the REPL functionality.
+//!
+//! Verifies that the REPL starts and exits correctly.
+
 use std::io::Write;
 use std::process::{Command, Stdio};
 
 #[test]
 fn test_repl_exit() {
+    // Spawn the REPL and send "exit" command
     let mut child = Command::new("cargo")
         .arg("run")
         .stdin(Stdio::piped())

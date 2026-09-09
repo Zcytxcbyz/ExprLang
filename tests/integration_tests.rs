@@ -1,3 +1,8 @@
+//! Integration tests for the ExprLang library API.
+//!
+//! Tests the public API functions: evaluate, evaluate_with_env,
+//! and evaluate_with_context.
+
 use expr_lang::{Evaluator, Value, evaluate, evaluate_with_context};
 use std::collections::HashMap;
 

@@ -23,15 +23,20 @@ Cargo.lock
 *~
 .DS_Store
 
-# test
+# Test output
 *.prof
 *.profdata
 *.gcda
 *.gcno
 
-# logs
+# Logs
 *.log
 
-# temp
+# Temp files
 *.tmp
 *.temp
+
+# Coverage reports
+lcov.info
+*.profraw
+target/llvm-cov/

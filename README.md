@@ -1,10 +1,10 @@
 # ExprLang
 
-**ExprLang** is a lightweight, Rust-based **mathematical expression language** designed for scientific computing, formula evaluation, and scripting. It combines the simplicity of a calculator with the power of a scripting language.
-
 [![Crates.io](https://img.shields.io/crates/v/expr_lang.svg)](https://crates.io/crates/expr_lang)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml/badge.svg)](https://github.com/Zcytxcbyz/ExprLang/actions/workflows/ci.yml)
+
+**ExprLang** is a lightweight, Rust-based **mathematical expression language** designed for scientific computing, formula evaluation, and scripting. It combines the simplicity of a calculator with the power of a scripting language.
 
 ## Features
 
@@ -13,14 +13,17 @@
 - **Logic**: `&&`, `||`, `!` (non-zero values are truthy)
 - **Variables**: dynamic typing, global scope, `let` or direct assignment
 - **Data types**: numbers (`f64`), strings (with escapes), arrays (nested)
-- **Control flow**: `if cond then expr else expr`, `while cond do expr`
+- **Control flow**: `if-elif-else` chains, `while` loops, `for-in` loops
 - **Functions**: `fn name(params) = body`, supports recursion, closure capture
-- **Built-in functions**: trigonometric, logarithmic, power, `max`, `min`, `len`, `concat`, etc.
+- **Built-in functions**: trigonometric, logarithmic, power, `max`, `min`, `len`, `concat`, `factorial`, `sign`, `is_even`, `is_odd`, `deg`, `rad`, and more
+- **Arrays**: indexing and slicing (`arr[1:3]`)
+- **Loop control**: `break` and `continue`
 - **Comments**: single-line `#`, multi-line `/* */` (nested)
 - **REPL**: interactive session for quick calculations
 - **Script execution**: run `.expr` files from the command line
-- **Comprehensive test suite**: unit + integration + script tests
+- **Comprehensive test suite**: unit + integration + script + CLI tests
 - **Fast compilation**: builds in under 0.1 seconds
+- **Cross-platform**: Linux, Windows, macOS
 
 ## Installation
 
@@ -33,10 +36,18 @@ cargo add expr_lang
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/exprlang
-cd exprlang
+git clone https://github.com/Zcytxcbyz/ExprLang
+cd ExprLang
 cargo build --release
 ```
+
+### Pre-built Binaries
+
+Download the latest release from [GitHub Releases](https://github.com/Zcytxcbyz/ExprLang/releases) for your platform:
+
+- **Linux**: `exprlang-linux-x86_64`
+- **Windows**: `exprlang-windows-x86_64.exe`
+- **macOS**: `exprlang-macos-x86_64`
 
 ## Usage
 
@@ -49,10 +60,12 @@ cargo run
 ```
 
 Example session:
+
 ```text
-ExprLang v0.1.0 (Rust Math Expression Language)
+ExprLang v0.3.0 (Rust Math Expression Language)
 Supported: arithmetic, comparisons, logic (&&, ||, !),
-strings, arrays, indexing, functions, loops, conditions.
+strings, arrays, indexing, slicing, functions, loops, conditions.
+Type 'exit' or 'quit' to exit.
 
 > 3 + 4 * 2
 11
@@ -90,7 +103,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-expr_lang = "0.1.0"
+expr_lang = "0.3.0"
 ```
 
 Then in your Rust code:
@@ -101,7 +114,7 @@ use expr_lang::{evaluate, Value};
 fn main() {
     let result = evaluate("sin(pi/2) + 3 * 2").unwrap();
     println!("{}", result); // 7.0
-    
+
     // With persistent environment
     let mut env = std::collections::HashMap::new();
     let mut evaluator = expr_lang::Evaluator::new();
@@ -140,11 +153,15 @@ Variables are dynamically typed and globally scoped. Use `let` for clarity or di
 ### Control Flow
 
 **Conditional**:
+
 ```text
-if x > 0 then x else -x
+if x > 0 then x
+elif x == 0 then 0
+else -x
 ```
 
-**Loop**:
+**While Loop**:
+
 ```text
 sum = 0;
 i = 1;
@@ -155,25 +172,78 @@ while i <= 10 do (
 sum   # 55
 ```
 
+**For Loop**:
+
+```text
+sum = 0;
+for i in 1..10 do sum = sum + i;
+sum   # 45
+
+# With step
+for i in 1..10 step 2 do sum = sum + i;
+sum   # 25
+
+# Reverse step
+for i in 10..1 step -1 do sum = sum + i;
+sum   # 54
+```
+
+**Loop Control**:
+
+```text
+# break
+sum = 0;
+for i in 1..10 do (
+    if i > 5 then break;
+    sum = sum + i
+);
+sum   # 15
+
+# continue
+sum = 0;
+for i in 1..10 do (
+    if is_even(i) then continue;
+    sum = sum + i
+);
+sum   # 25
+```
+
 ### Functions
 
 Define and call functions:
 
 ```text
-fn factorial(n) = if n <= 1 then 1 else n * factorial(n - 1)
+fn factorial(n) = if n <= 1 then 1 else n * factorial(n - 1);
 factorial(5)   # 120
 ```
 
-Functions are **first-class** (can be stored? Not yet) and support **recursion**. They capture the environment at call time (not definition time).
+Functions support **recursion**. They capture the environment at call time (not definition time).
+
+### Arrays
+
+**Indexing**:
+
+```text
+arr = [1, 2, 3, 4, 5];
+arr[2]   # 3
+```
+
+**Slicing**:
+
+```text
+[1, 2, 3, 4, 5][1:4]   # [2, 3, 4]
+```
 
 ### Built-in Functions
 
 | Category | Functions |
 |----------|-----------|
-| Trigonometry | `sin`, `cos`, `tan`, `asin`, `acos`, `atan` |
-| Log/Power | `sqrt`, `exp`, `ln`, `log10`, `pow(base, exp)` |
-| Numeric | `abs`, `floor`, `ceil`, `round`, `max`, `min` |
+| Trigonometry | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2` |
+| Log/Power | `sqrt`, `exp`, `ln`, `log10`, `log2`, `log(x, base)`, `pow(base, exp)` |
+| Numeric | `abs`, `floor`, `ceil`, `round`, `max`, `min`, `sign`, `hypot` |
+| Integer | `factorial`, `is_even`, `is_odd` |
 | Utility | `len` (string/array), `concat` (strings) |
+| Conversion | `deg` (radians to degrees), `rad` (degrees to radians) |
 
 **Constants**: `pi`, `e`
 
@@ -222,12 +292,32 @@ fib(10)
 # Output: 55
 ```
 
+### Array Processing
+
+```text
+# Sum all elements in an array
+arr = [1, 2, 3, 4, 5];
+sum = 0;
+i = 0;
+while i < len(arr) do (
+    sum = sum + arr[i];
+    i = i + 1
+);
+sum   # 15
+```
+
 ## Development
 
 ### Run Tests
 
 ```bash
 cargo test
+```
+
+### Run Coverage
+
+```bash
+cargo llvm-cov --html --open
 ```
 
 ### Project Structure
@@ -241,12 +331,15 @@ src/
 ├── lexer.rs        # Lexical analyzer
 ├── parser.rs       # Recursive descent parser
 ├── evaluator.rs    # Evaluator and built-in functions
-└── repl.rs         # REPL implementation
+├── repl.rs         # REPL implementation
+└── error.rs        # Error types and reporting
 
 tests/
-├── integration_tests.rs  # Public API tests
-├── script_tests.rs       # Script file tests
-└── scripts/              # Test script files (*.expr)
+├── cli_tests.rs           # CLI integration tests
+├── integration_tests.rs   # Public API tests
+├── repl_test.rs           # REPL tests
+├── script_tests.rs        # Script file tests
+└── scripts/               # Test script files (*.expr)
 ```
 
 ### Building Documentation
@@ -258,6 +351,42 @@ cargo doc --open
 ### Contributing
 
 Contributions are welcome! Please submit a pull request or open an issue for suggestions and bug reports.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing`)
+5. Open a Pull Request
+
+## Version History
+
+### v0.3.0 (2025-09-09)
+
+- Added `atan2`, `log2`, `log`, `hypot`, `factorial`, `sign`, `is_even`, `is_odd`, `deg`, `rad` functions
+- Added `if-elif-else` conditional chains
+- Added `for-in` loops with `step` support
+- Added array slicing (`arr[1:3]`)
+- Added `break` and `continue` loop control
+- Added `--version` flag and CI version auto-sync
+- Added comprehensive integration and CLI tests
+- Added test coverage reporting with `cargo-llvm-cov`
+
+### v0.2.x (Planned)
+
+- Step support for for loops (moved to v0.3.0)
+- Array traversal in for loops (moved to v0.3.0)
+
+### v0.1.0 (2025-09-07)
+
+- Initial release
+- Basic arithmetic, comparisons, logic
+- Variables, functions, recursion
+- `if-else` conditionals, `while` loops
+- Arrays and indexing
+- Strings with escapes
+- Comments (single-line and multi-line)
+- REPL and script execution
+- Comprehensive test suite
 
 ## License
 

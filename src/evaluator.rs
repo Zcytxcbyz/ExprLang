@@ -1,28 +1,38 @@
+//! Evaluator for ExprLang expressions.
+//!
+//! The evaluator traverses the AST and computes values using a
+//! dynamic environment for variables and function definitions.
+
 use crate::ast::Expr;
 use crate::value::Value;
 use std::collections::HashMap;
 use std::f64::consts;
 
+/// The evaluator state, holding user-defined functions.
 #[derive(Default)]
 pub struct Evaluator {
     functions: HashMap<String, (Vec<String>, Expr)>,
 }
 
 impl Evaluator {
+    /// Creates a new evaluator.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Evaluates an expression in the given environment.
     pub fn eval(&mut self, expr: &Expr, env: &mut HashMap<String, Value>) -> Result<Value, String> {
         self.eval_internal(expr, env)
     }
 
+    /// Internal recursive evaluator.
     fn eval_internal(
         &mut self,
         expr: &Expr,
         env: &mut HashMap<String, Value>,
     ) -> Result<Value, String> {
         match expr {
+            // Literals
             Expr::Number(n) => Ok(Value::Num(*n)),
             Expr::String(s) => Ok(Value::Str(s.clone())),
             Expr::Array(elems) => {
@@ -32,6 +42,8 @@ impl Evaluator {
                 }
                 Ok(Value::Array(vals))
             }
+
+            // Array indexing
             Expr::Index { array, index } => {
                 let arr = self.eval_internal(array, env)?;
                 let idx = self.eval_internal(index, env)?;
@@ -47,6 +59,8 @@ impl Evaluator {
                     _ => Err("Index requires an array and a numeric index".to_string()),
                 }
             }
+
+            // Array slicing
             Expr::Slice { array, start, end } => {
                 let arr = self.eval_internal(array, env)?;
                 match arr {
@@ -75,10 +89,14 @@ impl Evaluator {
                     _ => Err("Slice requires an array".to_string()),
                 }
             }
+
+            // Variable reference
             Expr::Variable(name) => env
                 .get(name)
                 .cloned()
                 .ok_or_else(|| format!("Undefined variable: {}", name)),
+
+            // Binary operations
             Expr::Binary { op, left, right } => {
                 let l = self.eval_internal(left, env)?;
                 let r = self.eval_internal(right, env)?;
@@ -113,12 +131,14 @@ impl Evaluator {
                             Err("/ requires numbers".to_string())
                         }
                     }
+                    // Comparison operators return 1.0 for true, 0.0 for false
                     crate::ast::Op::Less => Ok(Value::Num(if l < r { 1.0 } else { 0.0 })),
                     crate::ast::Op::LessEqual => Ok(Value::Num(if l <= r { 1.0 } else { 0.0 })),
                     crate::ast::Op::Greater => Ok(Value::Num(if l > r { 1.0 } else { 0.0 })),
                     crate::ast::Op::GreaterEqual => Ok(Value::Num(if l >= r { 1.0 } else { 0.0 })),
                     crate::ast::Op::Equal => Ok(Value::Num(if l == r { 1.0 } else { 0.0 })),
                     crate::ast::Op::NotEqual => Ok(Value::Num(if l != r { 1.0 } else { 0.0 })),
+                    // Logical operators
                     crate::ast::Op::And => {
                         let a = Self::as_bool(&l)?;
                         let b = Self::as_bool(&r)?;
@@ -131,6 +151,8 @@ impl Evaluator {
                     }
                 }
             }
+
+            // Unary operations
             Expr::Unary { op, expr } => {
                 let val = self.eval_internal(expr, env)?;
                 match op {
@@ -147,8 +169,12 @@ impl Evaluator {
                     }
                 }
             }
+
+            // Control flow: break and continue
             Expr::Break => return Err("__break__".to_string()),
             Expr::Continue => return Err("__continue__".to_string()),
+
+            // Function calls (built-in or user-defined)
             Expr::Call { name, args } => {
                 if let Some(builtin) = Self::get_builtin(name) {
                     return self.eval_builtin(builtin, args, env);
@@ -166,6 +192,7 @@ impl Evaluator {
                             arg_vals.len()
                         ));
                     }
+                    // Create a new environment with parameters bound
                     let mut local_env = env.clone();
                     for (p, v) in params.iter().zip(arg_vals) {
                         local_env.insert(p.clone(), v);
@@ -175,11 +202,15 @@ impl Evaluator {
                     Err(format!("Unknown function: {}", name))
                 }
             }
+
+            // Variable assignment
             Expr::Assign { name, expr } => {
                 let val = self.eval_internal(expr, env)?;
                 env.insert(name.clone(), val.clone());
                 Ok(val)
             }
+
+            // Expression sequence
             Expr::Sequence(seq) => {
                 let mut last = Value::Num(0.0);
                 for e in seq {
@@ -187,6 +218,8 @@ impl Evaluator {
                 }
                 Ok(last)
             }
+
+            // Conditional expression
             Expr::If { branches, else_branch } => {
                 for (cond, then_expr) in branches {
                     let cond_val = self.eval_internal(cond, env)?;
@@ -200,6 +233,8 @@ impl Evaluator {
                     Ok(Value::Num(0.0))
                 }
             }
+
+            // While loop
             Expr::While { cond, body } => {
                 let mut result = Value::Num(0.0);
                 while Self::as_bool(&self.eval_internal(cond, env)?)? {
@@ -212,7 +247,15 @@ impl Evaluator {
                 }
                 Ok(result)
             }
-            Expr::For { var, start, end, step, body } => {
+
+            // For loop
+            Expr::For {
+                var,
+                start,
+                end,
+                step,
+                body,
+            } => {
                 let start_val = self.eval_internal(start, env)?;
                 let end_val = self.eval_internal(end, env)?;
                 let step_val = if let Some(s) = step {
@@ -237,7 +280,10 @@ impl Evaluator {
                         match self.eval_internal(body, env) {
                             Ok(v) => result = v,
                             Err(e) if e == "__break__" => break,
-                            Err(e) if e == "__continue__" => { i += step_val; continue; }
+                            Err(e) if e == "__continue__" => {
+                                i += step_val;
+                                continue;
+                            }
                             Err(e) => return Err(e),
                         }
                         i += step_val;
@@ -248,7 +294,10 @@ impl Evaluator {
                         match self.eval_internal(body, env) {
                             Ok(v) => result = v,
                             Err(e) if e == "__break__" => break,
-                            Err(e) if e == "__continue__" => { i += step_val; continue; }
+                            Err(e) if e == "__continue__" => {
+                                i += step_val;
+                                continue;
+                            }
                             Err(e) => return Err(e),
                         }
                         i += step_val;
@@ -258,6 +307,8 @@ impl Evaluator {
                 }
                 Ok(result)
             }
+
+            // Function definition
             Expr::FunctionDef { name, params, body } => {
                 self.functions
                     .insert(name.clone(), (params.clone(), *body.clone()));
@@ -266,6 +317,11 @@ impl Evaluator {
         }
     }
 
+    /// Converts a value to a boolean.
+    ///
+    /// Numbers: non-zero is true, zero is false.
+    /// Strings: non-empty is true, empty is false.
+    /// Arrays: non-empty is true, empty is false.
     fn as_bool(val: &Value) -> Result<bool, String> {
         match val {
             Value::Num(n) => Ok(*n != 0.0),
@@ -274,9 +330,11 @@ impl Evaluator {
         }
     }
 
+    /// Returns the built-in function for the given name.
     fn get_builtin(name: &str) -> Option<BuiltinFunc> {
         use BuiltinFunc::*;
         match name {
+            // Trigonometric
             "sin" => Some(Sin),
             "cos" => Some(Cos),
             "tan" => Some(Tan),
@@ -284,6 +342,7 @@ impl Evaluator {
             "acos" => Some(Acos),
             "atan" => Some(Atan),
             "atan2" => Some(Atan2),
+            // Power and log
             "sqrt" => Some(Sqrt),
             "exp" => Some(Exp),
             "ln" => Some(Ln),
@@ -291,13 +350,15 @@ impl Evaluator {
             "log2" => Some(Log2),
             "log" => Some(Log),
             "hypot" => Some(Hypot),
-            "abs" => Some(Abs),
             "pow" => Some(Pow),
+            // Numeric
+            "abs" => Some(Abs),
             "max" => Some(Max),
             "min" => Some(Min),
             "floor" => Some(Floor),
             "ceil" => Some(Ceil),
             "round" => Some(Round),
+            // Utility
             "len" => Some(Len),
             "concat" => Some(Concat),
             "factorial" => Some(Factorial),
@@ -310,6 +371,7 @@ impl Evaluator {
         }
     }
 
+    /// Evaluates a built-in function call.
     fn eval_builtin(
         &mut self,
         func: BuiltinFunc,
@@ -318,12 +380,24 @@ impl Evaluator {
     ) -> Result<Value, String> {
         use BuiltinFunc::*;
         match func {
+            // Unary numeric functions
             Sin => self.eval_unary_num(args, env, |x| x.sin()),
             Cos => self.eval_unary_num(args, env, |x| x.cos()),
             Tan => self.eval_unary_num(args, env, |x| x.tan()),
             Asin => self.eval_unary_num(args, env, |x| x.asin()),
             Acos => self.eval_unary_num(args, env, |x| x.acos()),
             Atan => self.eval_unary_num(args, env, |x| x.atan()),
+            Sqrt => self.eval_unary_num(args, env, |x| x.sqrt()),
+            Exp => self.eval_unary_num(args, env, |x| x.exp()),
+            Ln => self.eval_unary_num(args, env, |x| x.ln()),
+            Log10 => self.eval_unary_num(args, env, |x| x.log10()),
+            Log2 => self.eval_unary_num(args, env, |x| x.log2()),
+            Abs => self.eval_unary_num(args, env, |x| x.abs()),
+            Floor => self.eval_unary_num(args, env, |x| x.floor()),
+            Ceil => self.eval_unary_num(args, env, |x| x.ceil()),
+            Round => self.eval_unary_num(args, env, |x| x.round()),
+
+            // Multi-argument functions
             Atan2 => {
                 if args.len() != 2 {
                     return Err("atan2 takes 2 arguments".to_string());
@@ -335,11 +409,6 @@ impl Evaluator {
                     _ => Err("atan2 requires numeric arguments".to_string()),
                 }
             }
-            Sqrt => self.eval_unary_num(args, env, |x| x.sqrt()),
-            Exp => self.eval_unary_num(args, env, |x| x.exp()),
-            Ln => self.eval_unary_num(args, env, |x| x.ln()),
-            Log10 => self.eval_unary_num(args, env, |x| x.log10()),
-            Log2 => self.eval_unary_num(args, env, |x| x.log2()),
             Log => {
                 if args.len() != 2 {
                     return Err("log takes 2 arguments (x, base)".to_string());
@@ -362,10 +431,6 @@ impl Evaluator {
                     _ => Err("hypot requires numeric arguments".to_string()),
                 }
             }
-            Abs => self.eval_unary_num(args, env, |x| x.abs()),
-            Floor => self.eval_unary_num(args, env, |x| x.floor()),
-            Ceil => self.eval_unary_num(args, env, |x| x.ceil()),
-            Round => self.eval_unary_num(args, env, |x| x.round()),
             Pow => {
                 if args.len() != 2 {
                     return Err("pow takes 2 arguments".to_string());
@@ -460,9 +525,13 @@ impl Evaluator {
                 let val = self.eval_internal(&args[0], env)?;
                 match val {
                     Value::Num(n) => {
-                        if n > 0.0 { Ok(Value::Num(1.0)) }
-                        else if n < 0.0 { Ok(Value::Num(-1.0)) }
-                        else { Ok(Value::Num(0.0)) }
+                        if n > 0.0 {
+                            Ok(Value::Num(1.0))
+                        } else if n < 0.0 {
+                            Ok(Value::Num(-1.0))
+                        } else {
+                            Ok(Value::Num(0.0))
+                        }
                     }
                     _ => Err("sign requires a number".to_string()),
                 }
@@ -522,6 +591,7 @@ impl Evaluator {
         }
     }
 
+    /// Helper for unary numeric built-in functions.
     fn eval_unary_num<F>(
         &mut self,
         args: &[Expr],
@@ -543,7 +613,9 @@ impl Evaluator {
     }
 }
 
+/// All built-in functions supported by the evaluator.
 enum BuiltinFunc {
+    // Trigonometric
     Sin,
     Cos,
     Tan,
@@ -551,6 +623,7 @@ enum BuiltinFunc {
     Acos,
     Atan,
     Atan2,
+    // Power and log
     Sqrt,
     Exp,
     Ln,
@@ -558,15 +631,17 @@ enum BuiltinFunc {
     Log2,
     Log,
     Hypot,
+    Pow,
+    // Numeric
     Abs,
     Max,
     Min,
     Floor,
     Ceil,
     Round,
+    // Utility
     Len,
     Concat,
-    Pow,
     Factorial,
     Sign,
     IsEven,
@@ -575,6 +650,7 @@ enum BuiltinFunc {
     Rad,
 }
 
+/// Evaluates an expression string in a fresh environment.
 pub fn evaluate(expr: &str) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
     let mut parser = crate::parser::Parser::new(lexer);
@@ -586,6 +662,7 @@ pub fn evaluate(expr: &str) -> Result<Value, String> {
     evaluator.eval(&ast, &mut env)
 }
 
+/// Evaluates an expression with a persistent environment.
 pub fn evaluate_with_env(expr: &str, env: &mut HashMap<String, Value>) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
     let mut parser = crate::parser::Parser::new(lexer);
@@ -597,6 +674,7 @@ pub fn evaluate_with_env(expr: &str, env: &mut HashMap<String, Value>) -> Result
     evaluator.eval(&ast, env)
 }
 
+/// Evaluates an expression with a persistent evaluator and environment.
 pub fn evaluate_with_context(
     expr: &str,
     env: &mut HashMap<String, Value>,

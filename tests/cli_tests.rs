@@ -1,26 +1,29 @@
+//! Integration tests for the ExprLang CLI.
+//!
+//! Tests command-line argument handling, script execution,
+//! version output, and error handling.
+
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-/// 获取当前 crate 的二进制路径
+/// Get the path to the built binary.
+///
+/// This attempts to find the binary in the target/debug directory,
+/// with fallback to `cargo run` if not found.
 fn get_binary_path() -> PathBuf {
-    // 使用 env!("CARGO_BIN_EXE") 获取二进制路径
-    // 需要将 crate 名改为 "expr_lang"（Cargo.toml 中的 name）
-    // 由于当前包名是 expr_lang，二进制名也是 expr_lang
     let bin_name = if cfg!(windows) { "expr_lang.exe" } else { "expr_lang" };
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
     path.push(bin_name);
     if !path.exists() {
-        // 如果不存在，尝试使用 cargo run 的路径
         let mut alt_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         alt_path.push("target");
         alt_path.push("debug");
         alt_path.push("expr_lang");
         if !alt_path.exists() {
-            // 若仍不存在，直接使用 cargo run
             return PathBuf::from("cargo");
         }
         return alt_path;
@@ -28,7 +31,7 @@ fn get_binary_path() -> PathBuf {
     path
 }
 
-/// 使用 cargo run 执行命令（确保编译）
+/// Run a command using `cargo run`.
 fn run_with_cargo(args: &[&str]) -> std::process::Output {
     Command::new("cargo")
         .arg("run")
@@ -38,11 +41,10 @@ fn run_with_cargo(args: &[&str]) -> std::process::Output {
         .expect("Failed to execute cargo run")
 }
 
-/// 直接运行二进制
+/// Run the binary with the given arguments.
 fn run_binary(args: &[&str]) -> std::process::Output {
     let binary = get_binary_path();
     if binary.file_name().unwrap() == "cargo" {
-        // fallback 到 cargo run
         run_with_cargo(args)
     } else {
         Command::new(&binary)
@@ -51,8 +53,6 @@ fn run_binary(args: &[&str]) -> std::process::Output {
             .expect(&format!("Failed to execute {:?}", binary))
     }
 }
-
-// ===== 测试用例 =====
 
 #[test]
 fn test_cli_version() {
@@ -92,7 +92,7 @@ fn test_cli_help_short() {
 
 #[test]
 fn test_cli_script_execution() {
-    // 创建临时脚本文件
+    // Create a temporary script file
     let script_content = "
         x = 10;
         x * 2 + 1
@@ -102,7 +102,7 @@ fn test_cli_script_execution() {
     fs::write(&script_path, script_content).expect("Failed to write test script");
 
     let output = run_binary(&[script_path.to_str().unwrap()]);
-    let _ = fs::remove_file(&script_path); // 清理
+    let _ = fs::remove_file(&script_path);
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -152,8 +152,8 @@ fn test_cli_script_with_loop() {
 
 #[test]
 fn test_cli_script_error() {
-    // 错误脚本应返回非零退出码
-    let script_content = "1 / 0"; // 除零错误
+    // Error script should return a non-zero exit code
+    let script_content = "1 / 0"; // Division by zero
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join("test_script_error.expr");
     fs::write(&script_path, script_content).expect("Failed to write test script");
@@ -168,7 +168,7 @@ fn test_cli_script_error() {
 
 #[test]
 fn test_cli_script_syntax_error() {
-    let script_content = "1 + + 2"; // 语法错误
+    let script_content = "1 + + 2"; // Syntax error
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join("test_script_syntax.expr");
     fs::write(&script_path, script_content).expect("Failed to write test script");
@@ -191,8 +191,7 @@ fn test_cli_script_not_found() {
 
 #[test]
 fn test_cli_no_args_repl() {
-    // 测试无参数时 REPL 启动（快速测试）
-    // 由于 REPL 是交互式的，我们只测试它能正常启动并接受 exit 命令
+    // Test REPL starts with no arguments
     let mut child = Command::new("cargo")
         .arg("run")
         .arg("--quiet")
@@ -212,7 +211,7 @@ fn test_cli_no_args_repl() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     assert!(output.status.success());
-    // REPL 启动时应显示版本信息
+    // REPL should display version info
     assert!(stdout.contains("ExprLang v"));
     assert!(stdout.contains("Supported:"));
 }

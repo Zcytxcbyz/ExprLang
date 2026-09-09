@@ -1,3 +1,8 @@
+//! Tests for script file execution.
+//!
+//! Reads `.expr` files from the `tests/scripts/` directory and
+//! verifies that their output matches the expected value.
+
 use std::fs;
 use std::path::Path;
 
@@ -19,6 +24,7 @@ fn test_script_files() {
         let content = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("Failed to read script file: {:?}", path));
 
+        // Extract expected value from the last line if it starts with "#=>"
         let (script_body, expected) = if let Some(last_line) = content.lines().last() {
             if let Some(stripped) = last_line.trim().strip_prefix("#=>") {
                 let expected_str = stripped.trim().to_string();

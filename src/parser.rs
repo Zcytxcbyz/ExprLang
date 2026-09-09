@@ -1,21 +1,31 @@
+//! Recursive descent parser for ExprLang.
+//!
+//! Parses a token stream into an Abstract Syntax Tree (AST).
+//! The parser handles operator precedence, function calls, and
+//! all language constructs.
+
 use crate::ast::{Expr, Op, UnaryOp};
 use crate::lexer::{Lexer, Token};
 
+/// The parser state.
 pub struct Parser {
     lexer: Lexer,
     current: Token,
 }
 
 impl Parser {
+    /// Creates a new parser with the given lexer.
     pub fn new(mut lexer: Lexer) -> Self {
         let current = lexer.next_token();
         Parser { lexer, current }
     }
 
+    /// Advances to the next token.
     fn next_token(&mut self) {
         self.current = self.lexer.next_token();
     }
 
+    /// Parses a complete program as a sequence of expressions.
     pub fn parse(&mut self) -> Result<Expr, String> {
         let mut seq = Vec::new();
         loop {
@@ -39,6 +49,10 @@ impl Parser {
         }
     }
 
+    /// Parses an expression.
+    ///
+    /// This is the main entry point for expression parsing and dispatches
+    /// to the appropriate parser based on the current token.
     fn parse_expr(&mut self) -> Result<Expr, String> {
         match &self.current {
             Token::If => return self.parse_if(),
@@ -91,6 +105,7 @@ impl Parser {
         }
     }
 
+    /// Parses logical OR expressions (lowest precedence).
     fn parse_or(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_and()?;
         while self.current == Token::Or {
@@ -105,6 +120,7 @@ impl Parser {
         Ok(left)
     }
 
+    /// Parses logical AND expressions.
     fn parse_and(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_comparison()?;
         while self.current == Token::And {
@@ -119,6 +135,7 @@ impl Parser {
         Ok(left)
     }
 
+    /// Parses comparison expressions.
     fn parse_comparison(&mut self) -> Result<Expr, String> {
         let left = self.parse_add_sub()?;
         match self.current {
@@ -149,6 +166,7 @@ impl Parser {
         }
     }
 
+    /// Parses addition and subtraction expressions.
     fn parse_add_sub(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_mul_div()?;
         while let Token::Plus | Token::Minus = self.current {
@@ -168,6 +186,7 @@ impl Parser {
         Ok(left)
     }
 
+    /// Parses multiplication and division expressions.
     fn parse_mul_div(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_unary()?;
         while let Token::Star | Token::Slash = self.current {
@@ -187,6 +206,7 @@ impl Parser {
         Ok(left)
     }
 
+    /// Parses unary expressions (`-` and `!`).
     fn parse_unary(&mut self) -> Result<Expr, String> {
         match self.current {
             Token::Minus => {
@@ -209,6 +229,7 @@ impl Parser {
         }
     }
 
+    /// Parses postfix expressions (array indexing and slicing).
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
         loop {
@@ -217,7 +238,7 @@ impl Parser {
                     self.next_token();
                     let index_or_slice = self.parse_expr()?;
                     if self.current == Token::Colon {
-                        // 切片: arr[start:end]
+                        // Slice: arr[start:end]
                         self.next_token();
                         let end = if self.current != Token::RBracket {
                             Some(Box::new(self.parse_expr()?))
@@ -234,7 +255,7 @@ impl Parser {
                             end,
                         };
                     } else {
-                        // 索引: arr[index]
+                        // Index: arr[index]
                         if self.current != Token::RBracket {
                             return Err("Expected ']'".to_string());
                         }
@@ -251,6 +272,7 @@ impl Parser {
         Ok(expr)
     }
 
+    /// Parses primary expressions (literals, identifiers, parenthesized expressions).
     fn parse_primary(&mut self) -> Result<Expr, String> {
         match &self.current {
             Token::Number(n) => {
@@ -267,6 +289,7 @@ impl Parser {
                 let name = name.clone();
                 self.next_token();
                 if self.current == Token::LParen {
+                    // Function call
                     self.next_token();
                     let mut args = Vec::new();
                     if self.current != Token::RParen {
@@ -290,6 +313,7 @@ impl Parser {
                 }
             }
             Token::LParen => {
+                // Parenthesized expression or sequence
                 self.next_token();
                 let mut seq = Vec::new();
                 let first = self.parse_expr()?;
@@ -313,6 +337,7 @@ impl Parser {
                 }
             }
             Token::LBracket => {
+                // Array literal
                 self.next_token();
                 let mut elems = Vec::new();
                 if self.current != Token::RBracket {
@@ -336,11 +361,12 @@ impl Parser {
         }
     }
 
+    /// Parses an `if` expression with optional `elif` and `else` branches.
     fn parse_if(&mut self) -> Result<Expr, String> {
         self.next_token();
         let mut branches = Vec::new();
 
-        // 第一个条件分支
+        // First condition branch
         let cond = Box::new(self.parse_expr()?);
         if self.current != Token::Then {
             return Err("Expected 'then'".to_string());
@@ -349,7 +375,7 @@ impl Parser {
         let then_expr = Box::new(self.parse_expr()?);
         branches.push((cond, then_expr));
 
-        // 处理 elif 分支
+        // Parse any `elif` branches
         while self.current == Token::Elif {
             self.next_token();
             let elif_cond = Box::new(self.parse_expr()?);
@@ -361,7 +387,7 @@ impl Parser {
             branches.push((elif_cond, elif_then));
         }
 
-        // 处理 else 分支
+        // Optional `else` branch
         let else_branch = if self.current == Token::Else {
             self.next_token();
             Some(Box::new(self.parse_expr()?))
@@ -375,6 +401,7 @@ impl Parser {
         })
     }
 
+    /// Parses a `while` loop.
     fn parse_while(&mut self) -> Result<Expr, String> {
         self.next_token();
         let cond = Box::new(self.parse_expr()?);
@@ -386,6 +413,9 @@ impl Parser {
         Ok(Expr::While { cond, body })
     }
 
+    /// Parses a `for` loop.
+    ///
+    /// Syntax: `for var in start..end [step step] do body`
     fn parse_for(&mut self) -> Result<Expr, String> {
         self.next_token(); // for
         let var = match &self.current {
@@ -422,7 +452,10 @@ impl Parser {
         let body = Box::new(self.parse_expr()?);
         Ok(Expr::For { var, start, end, step, body })
     }
-    
+
+    /// Parses a function definition.
+    ///
+    /// Syntax: `fn name(params) = body`
     fn parse_function_def(&mut self) -> Result<Expr, String> {
         self.next_token();
         let name = match &self.current {
