@@ -26,9 +26,17 @@ fn main() -> Result<(), String> {
     if args.len() > 1 {
         let file_path = &args[1];
         if file_path == "--help" || file_path == "-h" {
+            println!("ExprLang - A lightweight mathematical expression language");
+            println!();
             println!("Usage:");
-            println!("  cargo run                    Start interactive REPL");
-            println!("  cargo run -- <script.txt>   Execute script file");
+            println!("  exprlang                    Start interactive REPL");
+            println!("  exprlang <script.expr>      Execute script file");
+            println!("  exprlang --version          Show version");
+            println!("  exprlang --help             Show this help");
+            println!();
+            println!("With Cargo:");
+            println!("  cargo run                   Start interactive REPL");
+            println!("  cargo run -- <script.expr>  Execute script file");
             println!("  cargo run -- --version      Show version");
             return Ok(());
         }
