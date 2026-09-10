@@ -531,4 +531,12 @@ mod tests {
         );
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_less_and_greater_equal() {
+        assert_eq!(eval_num("2 < 3"), 1.0);
+        assert_eq!(eval_num("3 < 2"), 0.0);
+        assert_eq!(eval_num("3 >= 3"), 1.0);
+        assert_eq!(eval_num("2 >= 3"), 0.0);
+    }
 }
