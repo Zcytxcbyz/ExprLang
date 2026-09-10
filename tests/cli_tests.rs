@@ -22,7 +22,11 @@ fn binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(if cfg!(windows) { "expr_lang.exe" } else { "expr_lang" });
+    path.push(if cfg!(windows) {
+        "expr_lang.exe"
+    } else {
+        "expr_lang"
+    });
     path
 }
 
