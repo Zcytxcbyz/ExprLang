@@ -421,4 +421,32 @@ mod tests {
         assert!(evaluate("for i in \"a\"..10 do 1").is_err());
         assert!(evaluate("for i in 1..\"b\" do 1").is_err());
     }
+
+    #[test]
+    fn test_undefined_character() {
+        let result = evaluate("3 + {");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Unexpected character: {"));
+        assert!(evaluate("@").is_err());
+        assert!(evaluate("3 $ 4").is_err());
+    }
+
+    #[test]
+    fn test_lone_dot_is_error() {
+        // A lone '.' must produce an error, not hang or panic.
+        assert!(evaluate(".").is_err());
+        assert!(evaluate(". + 1").is_err());
+        assert!(evaluate("3 + .").is_err());
+        assert!(evaluate("[1,2,3][.]").is_err());
+        assert!(evaluate(".a").is_err());
+    }
+
+    #[test]
+    fn test_leading_dot_number() {
+        // '.5' should still parse as 0.5
+        assert_eq!(eval_num(".5"), 0.5);
+        assert_eq!(eval_num(".25 * 4"), 1.0);
+        assert_eq!(eval_num("[.5, .25][0]"), 0.5);
+    }
 }

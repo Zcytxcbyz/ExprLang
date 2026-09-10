@@ -15,14 +15,15 @@ pub struct Parser {
 
 impl Parser {
     /// Creates a new parser with the given lexer.
-    pub fn new(mut lexer: Lexer) -> Self {
-        let current = lexer.next_token();
-        Parser { lexer, current }
+    pub fn new(mut lexer: Lexer) -> Result<Self, String> {
+        let current = lexer.next_token()?;
+        Ok(Parser { lexer, current })
     }
 
     /// Advances to the next token.
-    fn next_token(&mut self) {
-        self.current = self.lexer.next_token();
+    fn next_token(&mut self) -> Result<(), String> {
+        self.current = self.lexer.next_token()?;
+        Ok(())
     }
 
     /// Parses a complete program as a sequence of expressions.
@@ -35,7 +36,7 @@ impl Parser {
                     let expr = self.parse_expr()?;
                     seq.push(expr);
                     if self.current == Token::Semicolon {
-                        self.next_token();
+                        self.next_token()?;
                     } else {
                         break;
                     }
@@ -59,23 +60,23 @@ impl Parser {
             Token::While => return self.parse_while(),
             Token::For => return self.parse_for(),
             Token::Break => {
-                self.next_token();
+                self.next_token()?;
                 return Ok(Expr::Break);
             }
             Token::Continue => {
-                self.next_token();
+                self.next_token()?;
                 return Ok(Expr::Continue);
             }
             Token::Fn => return self.parse_function_def(),
             Token::Ident(name) if name == "let" => {
-                self.next_token();
+                self.next_token()?;
                 if let Token::Ident(var_name) = &self.current {
                     let var_name = var_name.clone();
-                    self.next_token();
+                    self.next_token()?;
                     if self.current != Token::Assign {
                         return Err("Expected '=' after let".to_string());
                     }
-                    self.next_token();
+                    self.next_token()?;
                     let right = self.parse_expr()?;
                     return Ok(Expr::Assign {
                         name: var_name,
@@ -91,7 +92,7 @@ impl Parser {
         let left = self.parse_or()?;
         if self.current == Token::Assign {
             if let Expr::Variable(name) = left {
-                self.next_token();
+                self.next_token()?;
                 let right = self.parse_expr()?;
                 Ok(Expr::Assign {
                     name,
@@ -109,7 +110,7 @@ impl Parser {
     fn parse_or(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_and()?;
         while self.current == Token::Or {
-            self.next_token();
+            self.next_token()?;
             let right = self.parse_and()?;
             left = Expr::Binary {
                 op: Op::Or,
@@ -124,7 +125,7 @@ impl Parser {
     fn parse_and(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_comparison()?;
         while self.current == Token::And {
-            self.next_token();
+            self.next_token()?;
             let right = self.parse_comparison()?;
             left = Expr::Binary {
                 op: Op::And,
@@ -154,7 +155,7 @@ impl Parser {
                     Token::NotEqual => Op::NotEqual,
                     _ => unreachable!(),
                 };
-                self.next_token();
+                self.next_token()?;
                 let right = self.parse_comparison()?;
                 Ok(Expr::Binary {
                     op,
@@ -175,7 +176,7 @@ impl Parser {
                 Token::Minus => Op::Sub,
                 _ => unreachable!(),
             };
-            self.next_token();
+            self.next_token()?;
             let right = self.parse_mul_div()?;
             left = Expr::Binary {
                 op,
@@ -195,7 +196,7 @@ impl Parser {
                 Token::Slash => Op::Div,
                 _ => unreachable!(),
             };
-            self.next_token();
+            self.next_token()?;
             let right = self.parse_unary()?;
             left = Expr::Binary {
                 op,
@@ -210,7 +211,7 @@ impl Parser {
     fn parse_unary(&mut self) -> Result<Expr, String> {
         match self.current {
             Token::Minus => {
-                self.next_token();
+                self.next_token()?;
                 let expr = self.parse_unary()?;
                 Ok(Expr::Unary {
                     op: UnaryOp::Neg,
@@ -218,7 +219,7 @@ impl Parser {
                 })
             }
             Token::Not => {
-                self.next_token();
+                self.next_token()?;
                 let expr = self.parse_unary()?;
                 Ok(Expr::Unary {
                     op: UnaryOp::Not,
@@ -233,11 +234,11 @@ impl Parser {
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
         while let Token::LBracket = self.current {
-            self.next_token();
+            self.next_token()?;
             let index_or_slice = self.parse_expr()?;
             if self.current == Token::Colon {
                 // Slice: arr[start:end]
-                self.next_token();
+                self.next_token()?;
                 let end = if self.current != Token::RBracket {
                     Some(Box::new(self.parse_expr()?))
                 } else {
@@ -246,7 +247,7 @@ impl Parser {
                 if self.current != Token::RBracket {
                     return Err("Expected ']'".to_string());
                 }
-                self.next_token();
+                self.next_token()?;
                 expr = Expr::Slice {
                     array: Box::new(expr),
                     start: Some(Box::new(index_or_slice)),
@@ -257,7 +258,7 @@ impl Parser {
                 if self.current != Token::RBracket {
                     return Err("Expected ']'".to_string());
                 }
-                self.next_token();
+                self.next_token()?;
                 expr = Expr::Index {
                     array: Box::new(expr),
                     index: Box::new(index_or_slice),
@@ -272,27 +273,27 @@ impl Parser {
         match &self.current {
             Token::Number(n) => {
                 let num = *n;
-                self.next_token();
+                self.next_token()?;
                 Ok(Expr::Number(num))
             }
             Token::String(s) => {
                 let s = s.clone();
-                self.next_token();
+                self.next_token()?;
                 Ok(Expr::String(s))
             }
             Token::Ident(name) => {
                 let name = name.clone();
-                self.next_token();
+                self.next_token()?;
                 if self.current == Token::LParen {
                     // Function call
-                    self.next_token();
+                    self.next_token()?;
                     let mut args = Vec::new();
                     if self.current != Token::RParen {
                         loop {
                             let arg = self.parse_expr()?;
                             args.push(arg);
                             if self.current == Token::Comma {
-                                self.next_token();
+                                self.next_token()?;
                             } else {
                                 break;
                             }
@@ -301,7 +302,7 @@ impl Parser {
                     if self.current != Token::RParen {
                         return Err("Expected ')'".to_string());
                     }
-                    self.next_token();
+                    self.next_token()?;
                     Ok(Expr::Call { name, args })
                 } else {
                     Ok(Expr::Variable(name))
@@ -309,12 +310,12 @@ impl Parser {
             }
             Token::LParen => {
                 // Parenthesized expression or sequence
-                self.next_token();
+                self.next_token()?;
                 let mut seq = Vec::new();
                 let first = self.parse_expr()?;
                 seq.push(first);
                 while self.current == Token::Semicolon {
-                    self.next_token();
+                    self.next_token()?;
                     if self.current == Token::RParen {
                         break;
                     }
@@ -324,7 +325,7 @@ impl Parser {
                 if self.current != Token::RParen {
                     return Err("Expected ')'".to_string());
                 }
-                self.next_token();
+                self.next_token()?;
                 if seq.len() == 1 {
                     Ok(seq.remove(0))
                 } else {
@@ -333,14 +334,14 @@ impl Parser {
             }
             Token::LBracket => {
                 // Array literal
-                self.next_token();
+                self.next_token()?;
                 let mut elems = Vec::new();
                 if self.current != Token::RBracket {
                     loop {
                         let elem = self.parse_expr()?;
                         elems.push(elem);
                         if self.current == Token::Comma {
-                            self.next_token();
+                            self.next_token()?;
                         } else {
                             break;
                         }
@@ -349,7 +350,7 @@ impl Parser {
                 if self.current != Token::RBracket {
                     return Err("Expected ']'".to_string());
                 }
-                self.next_token();
+                self.next_token()?;
                 Ok(Expr::Array(elems))
             }
             _ => Err(format!("Unexpected token: {:?}", self.current)),
@@ -358,7 +359,7 @@ impl Parser {
 
     /// Parses an `if` expression with optional `elif` and `else` branches.
     fn parse_if(&mut self) -> Result<Expr, String> {
-        self.next_token();
+        self.next_token()?;
         let mut branches = Vec::new();
 
         // First condition branch
@@ -366,25 +367,25 @@ impl Parser {
         if self.current != Token::Then {
             return Err("Expected 'then'".to_string());
         }
-        self.next_token();
+        self.next_token()?;
         let then_expr = Box::new(self.parse_expr()?);
         branches.push((cond, then_expr));
 
         // Parse any `elif` branches
         while self.current == Token::Elif {
-            self.next_token();
+            self.next_token()?;
             let elif_cond = Box::new(self.parse_expr()?);
             if self.current != Token::Then {
                 return Err("Expected 'then' after elif condition".to_string());
             }
-            self.next_token();
+            self.next_token()?;
             let elif_then = Box::new(self.parse_expr()?);
             branches.push((elif_cond, elif_then));
         }
 
         // Optional `else` branch
         let else_branch = if self.current == Token::Else {
-            self.next_token();
+            self.next_token()?;
             Some(Box::new(self.parse_expr()?))
         } else {
             None
@@ -398,12 +399,12 @@ impl Parser {
 
     /// Parses a `while` loop.
     fn parse_while(&mut self) -> Result<Expr, String> {
-        self.next_token();
+        self.next_token()?;
         let cond = Box::new(self.parse_expr()?);
         if self.current != Token::Do {
             return Err("Expected 'do'".to_string());
         }
-        self.next_token();
+        self.next_token()?;
         let body = Box::new(self.parse_expr()?);
         Ok(Expr::While { cond, body })
     }
@@ -412,28 +413,28 @@ impl Parser {
     ///
     /// Syntax: `for var in start..end [step step] do body`
     fn parse_for(&mut self) -> Result<Expr, String> {
-        self.next_token(); // for
+        self.next_token()?; // for
         let var = match &self.current {
             Token::Ident(name) => name.clone(),
             _ => return Err("Expected variable name after 'for'".to_string()),
         };
-        self.next_token();
+        self.next_token()?;
 
         if self.current != Token::In {
             return Err("Expected 'in' after variable".to_string());
         }
-        self.next_token();
+        self.next_token()?;
 
         let start = Box::new(self.parse_expr()?);
         if self.current != Token::DotDot {
             return Err("Expected '..' in range".to_string());
         }
-        self.next_token();
+        self.next_token()?;
 
         let end = Box::new(self.parse_expr()?);
 
         let step = if self.current == Token::Step {
-            self.next_token();
+            self.next_token()?;
             Some(Box::new(self.parse_expr()?))
         } else {
             None
@@ -442,7 +443,7 @@ impl Parser {
         if self.current != Token::Do {
             return Err("Expected 'do'".to_string());
         }
-        self.next_token();
+        self.next_token()?;
 
         let body = Box::new(self.parse_expr()?);
         Ok(Expr::For {
@@ -458,24 +459,24 @@ impl Parser {
     ///
     /// Syntax: `fn name(params) = body`
     fn parse_function_def(&mut self) -> Result<Expr, String> {
-        self.next_token();
+        self.next_token()?;
         let name = match &self.current {
             Token::Ident(n) => n.clone(),
             _ => return Err("Expected function name".to_string()),
         };
-        self.next_token();
+        self.next_token()?;
         if self.current != Token::LParen {
             return Err("Expected '('".to_string());
         }
-        self.next_token();
+        self.next_token()?;
         let mut params = Vec::new();
         if self.current != Token::RParen {
             loop {
                 if let Token::Ident(p) = &self.current {
                     params.push(p.clone());
-                    self.next_token();
+                    self.next_token()?;
                     if self.current == Token::Comma {
-                        self.next_token();
+                        self.next_token()?;
                     } else if self.current == Token::RParen {
                         break;
                     } else {
@@ -486,11 +487,11 @@ impl Parser {
                 }
             }
         }
-        self.next_token();
+        self.next_token()?;
         if self.current != Token::Assign {
             return Err("Expected '='".to_string());
         }
-        self.next_token();
+        self.next_token()?;
         let body = Box::new(self.parse_expr()?);
         Ok(Expr::FunctionDef { name, params, body })
     }

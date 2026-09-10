@@ -656,7 +656,7 @@ enum BuiltinFunc {
 /// Evaluates an expression string in a fresh environment.
 pub fn evaluate(expr: &str) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
-    let mut parser = crate::parser::Parser::new(lexer);
+    let mut parser = crate::parser::Parser::new(lexer)?;
     let ast = parser.parse()?;
     let mut evaluator = Evaluator::new();
     let mut env = HashMap::new();
@@ -668,7 +668,7 @@ pub fn evaluate(expr: &str) -> Result<Value, String> {
 /// Evaluates an expression with a persistent environment.
 pub fn evaluate_with_env(expr: &str, env: &mut HashMap<String, Value>) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
-    let mut parser = crate::parser::Parser::new(lexer);
+    let mut parser = crate::parser::Parser::new(lexer)?;
     let ast = parser.parse()?;
     let mut evaluator = Evaluator::new();
     env.entry("pi".to_string())
@@ -684,7 +684,7 @@ pub fn evaluate_with_context(
     evaluator: &mut Evaluator,
 ) -> Result<Value, String> {
     let lexer = crate::lexer::Lexer::new(expr);
-    let mut parser = crate::parser::Parser::new(lexer);
+    let mut parser = crate::parser::Parser::new(lexer)?;
     let ast = parser.parse()?;
     evaluator.eval(&ast, env)
 }

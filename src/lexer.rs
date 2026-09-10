@@ -110,7 +110,10 @@ impl Lexer {
     /// Supports integers and floating-point numbers with a decimal point.
     /// The decimal point is only considered part of the number if followed
     /// by a digit, to avoid confusion with the `..` range operator.
-    fn read_number(&mut self) -> f64 {
+    ///
+    /// Returns an error if no digit is consumed (e.g. a lone `.`), which
+    /// previously caused the lexer to loop forever without advancing.
+    fn read_number(&mut self) -> Result<f64, String> {
         let mut num_str = String::new();
         let mut has_dot = false;
         while let Some(c) = self.peek_char() {
@@ -134,7 +137,14 @@ impl Lexer {
                 break;
             }
         }
-        num_str.parse().unwrap_or(0.0)
+        if num_str.is_empty() {
+            // Guard against infinite loop on a lone '.'
+            let bad = self.peek_char().unwrap_or('.');
+            return Err(format!("Unexpected character: {}", bad));
+        }
+        num_str
+            .parse()
+            .map_err(|_| format!("Invalid number: {}", num_str))
     }
 
     /// Reads a string literal from the input.
@@ -212,7 +222,7 @@ impl Lexer {
     /// Returns the next token from the input.
     ///
     /// Skips whitespace and comments before returning the next token.
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Result<Token, String> {
         loop {
             self.skip_whitespace();
             // Skip single-line comments starting with '#'
@@ -236,128 +246,128 @@ impl Lexer {
         }
 
         match self.peek_char() {
-            None => Token::Eof,
+            None => Ok(Token::Eof),
             Some(c) => {
                 let next = self.input.get(self.pos + 1).copied();
                 match (c, next) {
                     // Multi-character operators
                     ('<', Some('=')) => {
                         self.pos += 2;
-                        Token::LessEqual
+                        Ok(Token::LessEqual)
                     }
                     ('>', Some('=')) => {
                         self.pos += 2;
-                        Token::GreaterEqual
+                        Ok(Token::GreaterEqual)
                     }
                     ('=', Some('=')) => {
                         self.pos += 2;
-                        Token::Equal
+                        Ok(Token::Equal)
                     }
                     ('!', Some('=')) => {
                         self.pos += 2;
-                        Token::NotEqual
+                        Ok(Token::NotEqual)
                     }
                     ('&', Some('&')) => {
                         self.pos += 2;
-                        Token::And
+                        Ok(Token::And)
                     }
                     ('|', Some('|')) => {
                         self.pos += 2;
-                        Token::Or
+                        Ok(Token::Or)
                     }
                     ('.', Some('.')) => {
                         self.pos += 2;
-                        Token::DotDot
+                        Ok(Token::DotDot)
                     }
                     // Single-character tokens
                     _ => match c {
                         '+' => {
                             self.pos += 1;
-                            Token::Plus
+                            Ok(Token::Plus)
                         }
                         '-' => {
                             self.pos += 1;
-                            Token::Minus
+                            Ok(Token::Minus)
                         }
                         '*' => {
                             self.pos += 1;
-                            Token::Star
+                            Ok(Token::Star)
                         }
                         '/' => {
                             self.pos += 1;
-                            Token::Slash
+                            Ok(Token::Slash)
                         }
                         '(' => {
                             self.pos += 1;
-                            Token::LParen
+                            Ok(Token::LParen)
                         }
                         ')' => {
                             self.pos += 1;
-                            Token::RParen
+                            Ok(Token::RParen)
                         }
                         '[' => {
                             self.pos += 1;
-                            Token::LBracket
+                            Ok(Token::LBracket)
                         }
                         ']' => {
                             self.pos += 1;
-                            Token::RBracket
+                            Ok(Token::RBracket)
                         }
                         '=' => {
                             self.pos += 1;
-                            Token::Assign
+                            Ok(Token::Assign)
                         }
                         ',' => {
                             self.pos += 1;
-                            Token::Comma
+                            Ok(Token::Comma)
                         }
                         ';' => {
                             self.pos += 1;
-                            Token::Semicolon
+                            Ok(Token::Semicolon)
                         }
                         '<' => {
                             self.pos += 1;
-                            Token::Less
+                            Ok(Token::Less)
                         }
                         '>' => {
                             self.pos += 1;
-                            Token::Greater
+                            Ok(Token::Greater)
                         }
                         '!' => {
                             self.pos += 1;
-                            Token::Not
+                            Ok(Token::Not)
                         }
                         ':' => {
                             self.pos += 1;
-                            Token::Colon
+                            Ok(Token::Colon)
                         }
                         '"' => {
                             let s = self.read_string();
-                            Token::String(s)
+                            Ok(Token::String(s))
                         }
                         _ if c.is_ascii_digit() || c == '.' => {
-                            let num = self.read_number();
-                            Token::Number(num)
+                            let num = self.read_number()?;
+                            Ok(Token::Number(num))
                         }
                         _ if c.is_alphabetic() || c == '_' => {
                             let id = self.read_ident();
                             match id.as_str() {
-                                "if" => Token::If,
-                                "then" => Token::Then,
-                                "else" => Token::Else,
-                                "elif" => Token::Elif,
-                                "while" => Token::While,
-                                "do" => Token::Do,
-                                "for" => Token::For,
-                                "in" => Token::In,
-                                "step" => Token::Step,
-                                "break" => Token::Break,
-                                "continue" => Token::Continue,
-                                "fn" => Token::Fn,
-                                _ => Token::Ident(id),
+                                "if" => Ok(Token::If),
+                                "then" => Ok(Token::Then),
+                                "else" => Ok(Token::Else),
+                                "elif" => Ok(Token::Elif),
+                                "while" => Ok(Token::While),
+                                "do" => Ok(Token::Do),
+                                "for" => Ok(Token::For),
+                                "in" => Ok(Token::In),
+                                "step" => Ok(Token::Step),
+                                "break" => Ok(Token::Break),
+                                "continue" => Ok(Token::Continue),
+                                "fn" => Ok(Token::Fn),
+                                _ => Ok(Token::Ident(id)),
                             }
                         }
-                        _ => panic!("Unexpected character: {}", c),
+                        _ => Err(format!("Unexpected character: {}", c)),
                     },
                 }
             }

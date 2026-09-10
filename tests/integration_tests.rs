@@ -88,3 +88,17 @@ fn test_nested_array() {
         _ => panic!("Expected number"),
     }
 }
+
+#[test]
+fn test_undefined_character_error() {
+    let result = expr_lang::evaluate("3 + {");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("Unexpected character"));
+}
+
+#[test]
+fn test_lone_dot_via_public_api() {
+    // Ensures the public API never hangs on malformed numeric input.
+    assert!(expr_lang::evaluate(".").is_err());
+    assert!(expr_lang::evaluate("3 + .").is_err());
+}
