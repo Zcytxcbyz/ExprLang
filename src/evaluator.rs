@@ -8,16 +8,60 @@ use crate::value::Value;
 use std::collections::HashMap;
 use std::f64::consts;
 
-/// The evaluator state, holding user-defined functions.
-#[derive(Default)]
+/// The evaluator state, holding user-defined functions and step budget.
 pub struct Evaluator {
     functions: HashMap<String, (Vec<String>, Expr)>,
+    /// Maximum evaluation steps allowed. A negative value means unlimited.
+    max_steps: i64,
+    /// Number of evaluation steps performed since the last reset.
+    step_count: i64,
+}
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Evaluator {
+            functions: HashMap::new(),
+            max_steps: -1,
+            step_count: 0,
+        }
+    }
 }
 
 impl Evaluator {
-    /// Creates a new evaluator.
+    /// Creates a new evaluator with no step limit.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates a new evaluator with the given step limit.
+    /// A negative `max_steps` (or zero) means unlimited.
+    pub fn with_max_steps(max_steps: i64) -> Self {
+        Evaluator {
+            functions: HashMap::new(),
+            max_steps,
+            step_count: 0,
+        }
+    }
+
+    /// Sets the maximum number of evaluation steps.
+    /// A negative value (or zero) means unlimited.
+    pub fn set_max_steps(&mut self, max_steps: i64) {
+        self.max_steps = max_steps;
+    }
+
+    /// Returns the current maximum step limit.
+    pub fn max_steps(&self) -> i64 {
+        self.max_steps
+    }
+
+    /// Resets the step counter to zero.
+    pub fn reset_steps(&mut self) {
+        self.step_count = 0;
+    }
+
+    /// Returns the number of evaluation steps performed since the last reset.
+    pub fn step_count(&self) -> i64 {
+        self.step_count
     }
 
     /// Evaluates an expression in the given environment.
@@ -31,6 +75,12 @@ impl Evaluator {
         expr: &Expr,
         env: &mut HashMap<String, Value>,
     ) -> Result<Value, String> {
+        // Step accounting: every AST node visit counts as one step.
+        self.step_count += 1;
+        if self.max_steps > 0 && self.step_count > self.max_steps {
+            return Err(format!("Step limit exceeded (max: {})", self.max_steps));
+        }
+
         match expr {
             // Literals
             Expr::Number(n) => Ok(Value::Num(*n)),

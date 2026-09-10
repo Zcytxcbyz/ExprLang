@@ -1,6 +1,6 @@
 [package]
 name = "expr_lang"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 description = "ExprLang: A lightweight mathematical expression language"
 license = "MIT"

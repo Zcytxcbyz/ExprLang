@@ -24,7 +24,7 @@ mod value;
 
 pub use evaluator::Evaluator;
 pub use evaluator::{evaluate, evaluate_with_context, evaluate_with_env};
-pub use repl::repl;
+pub use repl::{repl, repl_with_max_steps};
 pub use value::Value;
 
 /// The current version of ExprLang, read from Cargo.toml at compile time.
@@ -448,5 +448,87 @@ mod tests {
         assert_eq!(eval_num(".5"), 0.5);
         assert_eq!(eval_num(".25 * 4"), 1.0);
         assert_eq!(eval_num("[.5, .25][0]"), 0.5);
+    }
+
+    // ===== Step limit tests =====
+
+    #[test]
+    fn test_step_limit_unlimited() {
+        // Negative max_steps means unlimited.
+        let mut evaluator = Evaluator::with_max_steps(-1);
+        let mut env = HashMap::new();
+        env.insert("pi".to_string(), Value::Num(consts::PI));
+        let result = evaluate_with_context(
+            "sum = 0; for i in 1..100 do sum = sum + i; sum",
+            &mut env,
+            &mut evaluator,
+        );
+        assert_eq!(result.unwrap(), Value::Num(4950.0));
+    }
+
+    #[test]
+    fn test_step_limit_zero_is_unlimited() {
+        // Zero behaves like unlimited; only positive values impose a limit.
+        let mut evaluator = Evaluator::with_max_steps(0);
+        let mut env = HashMap::new();
+        env.insert("pi".to_string(), Value::Num(consts::PI));
+        let result = evaluate_with_context(
+            "sum = 0; for i in 1..100 do sum = sum + i; sum",
+            &mut env,
+            &mut evaluator,
+        );
+        assert_eq!(result.unwrap(), Value::Num(4950.0));
+    }
+
+    #[test]
+    fn test_step_limit_exceeded() {
+        let mut evaluator = Evaluator::with_max_steps(10);
+        let mut env = HashMap::new();
+        let result = evaluate_with_context(
+            "sum = 0; for i in 1..100 do sum = sum + i; sum",
+            &mut env,
+            &mut evaluator,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Step limit exceeded"));
+    }
+
+    #[test]
+    fn test_step_limit_within_bounds() {
+        let mut evaluator = Evaluator::with_max_steps(10_000);
+        let mut env = HashMap::new();
+        let result = evaluate_with_context("1 + 2 + 3", &mut env, &mut evaluator);
+        assert_eq!(result.unwrap(), Value::Num(6.0));
+    }
+
+    #[test]
+    fn test_step_counter_and_reset() {
+        let mut evaluator = Evaluator::with_max_steps(1000);
+        let mut env = HashMap::new();
+        let _ = evaluate_with_context("1", &mut env, &mut evaluator).unwrap();
+        assert!(evaluator.step_count() >= 1);
+
+        let before = evaluator.step_count();
+        evaluator.reset_steps();
+        assert_eq!(evaluator.step_count(), 0);
+
+        let _ = evaluate_with_context("2", &mut env, &mut evaluator).unwrap();
+        assert!(evaluator.step_count() >= 1);
+        assert!(evaluator.step_count() < before + 1_000);
+    }
+
+    #[test]
+    fn test_step_limit_setter() {
+        let mut evaluator = Evaluator::new();
+        assert_eq!(evaluator.max_steps(), -1);
+        evaluator.set_max_steps(5);
+        assert_eq!(evaluator.max_steps(), 5);
+        let mut env = HashMap::new();
+        let result = evaluate_with_context(
+            "sum = 0; for i in 1..100 do sum = sum + i; sum",
+            &mut env,
+            &mut evaluator,
+        );
+        assert!(result.is_err());
     }
 }

@@ -64,7 +64,8 @@ fn test_cli_version() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("ExprLang v"));
-    assert!(stdout.contains("0.3.0"));
+    let version = env!("CARGO_PKG_VERSION");
+    assert!(stdout.contains(version));
 }
 
 #[test]
@@ -73,7 +74,8 @@ fn test_cli_version_short() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("ExprLang v"));
-    assert!(stdout.contains("0.3.0"));
+    let version = env!("CARGO_PKG_VERSION");
+    assert!(stdout.contains(version));
 }
 
 #[test]
@@ -219,4 +221,108 @@ fn test_cli_no_args_repl() {
     // REPL should display version info
     assert!(stdout.contains("ExprLang v"));
     assert!(stdout.contains("Supported:"));
+}
+
+#[test]
+fn test_cli_max_steps_exceeded() {
+    let script_content = "
+        sum = 0;
+        for i in 1..100 do sum = sum + i;
+        sum
+    ";
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("test_max_steps_low.expr");
+    fs::write(&script_path, script_content).expect("Failed to write test script");
+
+    let output = run_binary(&["--max-steps", "10", script_path.to_str().unwrap()]);
+    let _ = fs::remove_file(&script_path);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Step limit exceeded"));
+}
+
+#[test]
+fn test_cli_max_steps_within_bounds() {
+    let script_content = "1 + 2 + 3";
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("test_max_steps_high.expr");
+    fs::write(&script_path, script_content).expect("Failed to write test script");
+
+    let output = run_binary(&["--max-steps", "10000", script_path.to_str().unwrap()]);
+    let _ = fs::remove_file(&script_path);
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("6"));
+}
+
+#[test]
+fn test_cli_max_steps_short_flag() {
+    let script_content = "1 + 2";
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("test_max_steps_short.expr");
+    fs::write(&script_path, script_content).expect("Failed to write test script");
+
+    let output = run_binary(&["-s", "10000", script_path.to_str().unwrap()]);
+    let _ = fs::remove_file(&script_path);
+
+    assert!(output.status.success());
+}
+
+#[test]
+fn test_cli_max_steps_unlimited_negative() {
+    let script_content = "
+        sum = 0;
+        for i in 1..100 do sum = sum + i;
+        sum
+    ";
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("test_max_steps_unlimited.expr");
+    fs::write(&script_path, script_content).expect("Failed to write test script");
+
+    let output = run_binary(&["--max-steps", "-1", script_path.to_str().unwrap()]);
+    let _ = fs::remove_file(&script_path);
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("4950"));
+}
+
+#[test]
+fn test_cli_max_steps_inline_equals() {
+    let script_content = "1 + 2";
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("test_max_steps_inline.expr");
+    fs::write(&script_path, script_content).expect("Failed to write test script");
+
+    let output = run_binary(&["--max-steps=10000", script_path.to_str().unwrap()]);
+    let _ = fs::remove_file(&script_path);
+
+    assert!(output.status.success());
+}
+
+#[test]
+fn test_cli_max_steps_invalid_value() {
+    let output = run_binary(&["--max-steps", "abc"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Invalid value"));
+}
+
+#[test]
+fn test_cli_max_steps_missing_value() {
+    let output = run_binary(&["--max-steps"]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("requires a value"));
+}
+
+#[test]
+fn test_cli_help_mentions_max_steps() {
+    let output = run_binary(&["--help"]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("--max-steps"));
+    assert!(stdout.contains("unlimited"));
 }

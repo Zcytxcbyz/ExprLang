@@ -62,7 +62,7 @@ cargo run
 Example session:
 
 ```text
-ExprLang v0.3.0 (Rust Math Expression Language)
+ExprLang v0.3.1 (Rust Math Expression Language)
 Supported: arithmetic, comparisons, logic (&&, ||, !),
 strings, arrays, indexing, slicing, functions, loops, conditions.
 Type 'exit' or 'quit' to exit.
@@ -97,14 +97,27 @@ cargo run -- factorial.expr
 # Output: 720
 ```
 
-### As a Library
+### Step Limit
 
-Add to your `Cargo.toml`:
+To protect against runaway loops or runaway recursion, you can cap the
+number of evaluation steps per input:
 
-```toml
-[dependencies]
-expr_lang = "0.3.0"
+```bash
+# REPL with a 100000-step budget per input
+cargo run -- --max-steps 100000
+
+# Execute a script with a 50000-step budget
+cargo run -- --max-steps 50000 script.expr
+
+# Short flag form
+cargo run -- -s 50000 script.expr
+
+# Explicitly request unlimited steps (the default)
+cargo run -- --max-steps -1 script.expr
 ```
+
+A negative value (or zero) means **unlimited**. When the limit is
+exceeded, evaluation stops and reports `Step limit exceeded (max: N)`.
 
 Then in your Rust code:
 
@@ -360,7 +373,17 @@ Contributions are welcome! Please submit a pull request or open an issue for sug
 
 ## Version History
 
-### v0.3.0 (2025-09-09)
+### v0.3.1 (2026-09-10)
+
+- Added `--max-steps N` / `-s N` CLI option to bound evaluation steps
+  per input (`N < 0` means unlimited, `N > 0` limits to `N` steps)
+- Added `Evaluator::with_max_steps`, `set_max_steps`, `reset_steps`,
+  `step_count`, `max_steps`
+- Added `repl_with_max_steps`; `repl()` remains as an unlimited alias
+- Fixed: lexer now returns an error instead of panicking on undefined
+  characters, and no longer loops forever on a lone `.`
+
+### v0.3.0 (2026-09-09)
 
 - Added `atan2`, `log2`, `log`, `hypot`, `factorial`, `sign`, `is_even`, `is_odd`, `deg`, `rad` functions
 - Added `if-elif-else` conditional chains
@@ -376,7 +399,7 @@ Contributions are welcome! Please submit a pull request or open an issue for sug
 - Step support for for loops (moved to v0.3.0)
 - Array traversal in for loops (moved to v0.3.0)
 
-### v0.1.0 (2025-09-07)
+### v0.1.0 (2026-09-07)
 
 - Initial release
 - Basic arithmetic, comparisons, logic
