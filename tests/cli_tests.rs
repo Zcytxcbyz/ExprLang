@@ -8,54 +8,30 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-/// Get the path to the built binary.
+/// Returns the path to the `expr_lang` binary built by Cargo.
 ///
-/// This attempts to find the binary in the target/debug directory,
-/// with fallback to `cargo run` if not found.
-fn get_binary_path() -> PathBuf {
-    let bin_name = if cfg!(windows) {
-        "expr_lang.exe"
-    } else {
-        "expr_lang"
-    };
+/// Cargo injects `CARGO_BIN_EXE_expr_lang` into the process environment
+/// when running integration tests, and it always points to the freshly
+/// built binary for the active target directory (including
+/// `target/llvm-cov-target` when running under `cargo llvm-cov`).
+fn binary_path() -> PathBuf {
+    if let Ok(p) = std::env::var("CARGO_BIN_EXE_expr_lang") {
+        return PathBuf::from(p);
+    }
+    // Fallback for unusual build setups that don't provide the env var.
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push(bin_name);
-    if !path.exists() {
-        let mut alt_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        alt_path.push("target");
-        alt_path.push("debug");
-        alt_path.push("expr_lang");
-        if !alt_path.exists() {
-            return PathBuf::from("cargo");
-        }
-        return alt_path;
-    }
+    path.push(if cfg!(windows) { "expr_lang.exe" } else { "expr_lang" });
     path
-}
-
-/// Run a command using `cargo run`.
-fn run_with_cargo(args: &[&str]) -> std::process::Output {
-    Command::new("cargo")
-        .arg("run")
-        .arg("--quiet")
-        .args(args)
-        .output()
-        .expect("Failed to execute cargo run")
 }
 
 /// Run the binary with the given arguments.
 fn run_binary(args: &[&str]) -> std::process::Output {
-    let binary = get_binary_path();
-    if binary.file_name().unwrap() == "cargo" {
-        run_with_cargo(args)
-    } else {
-        Command::new(&binary)
-            .args(args)
-            .output()
-            .expect(&format!("Failed to execute {:?}", binary))
-    }
+    Command::new(binary_path())
+        .args(args)
+        .output()
+        .expect("Failed to execute expr_lang binary")
 }
 
 #[test]
